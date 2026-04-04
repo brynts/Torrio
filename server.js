@@ -1,71 +1,106 @@
-// server.js - Serve static files + handle manifest.json for Stremio
+// server.js - Torrio: Static files + Stremio manifest.json handler
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
 const PORT = 80;
+
+// MIME types untuk static files
 const MIME_TYPES = {
-  '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
-  '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf'
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject'
 };
 
-// Decode base64 config (same logic as client-side safeAtob)
+// Decode base64url (URL-safe base64) seperti di client-side
 function safeAtob(str) {
   try {
+    // Convert base64url to standard base64
     let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed
     while (base64.length % 4) base64 += '=';
+    // Decode
     const decoded = Buffer.from(base64, 'base64').toString('utf-8');
+    // Handle URI encoding for Unicode
     return decodeURIComponent(
       decoded.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
     );
-  } catch (e) { return null; }
+  } catch (e) {
+    console.error('Decode error:', e.message);
+    return null;
+  }
 }
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let pathname = url.pathname;
 
-  // 🎯 HANDLE MANIFEST.JSON FOR STREMIO (Server-side)
-  const manifestMatch = pathname.match(/^\/([A-Za-z0-9_-]{10,})\/manifest\.json$/);
+  // 🎯 HANDLE /manifest.json FOR STREMIO (Server-side rendering)
+  // Match: /ANY_BASE64_STRING/manifest.json (lebih flexible)
+  const manifestMatch = pathname.match(/^\/([^/]+)\/manifest\.json(?:\?.*)?$/);
+  
   if (manifestMatch) {
     const configKey = manifestMatch[1];
-    // Validate config (optional: decode to check if valid JSON)
+    
+    // Optional: validate config (decode to check if valid)
     const configJson = safeAtob(configKey);
     
-    // Return minimal valid Stremio manifest
+    // Return minimal valid Stremio manifest (sama seperti Vercel)
     const manifest = {
       id: 'com.torrio.stremio',
-      version: '2.5.0',
-      name: 'Tor Fast',
+      version: '1.0',
+      name: 'Torrio',
       description: 'TorrServer + Multi-Source Aggregator for Stremio',
       resources: ['stream', 'meta'],
       types: ['movie', 'series'],
       idPrefixes: ['tt', 'kitsu'],
-      behaviorHints: { configurable: true, configurationRequired: false },
+      behaviorHints: {
+        configurable: true,
+        configurationRequired: false
+      },
       catalogs: [],
-      background: 'https://i.imgur.com/3xJYs3L.jpeg',
-      logo: 'https://i.imgur.com/3xJYs3L.jpeg'
+      background: 'https://blog.stremio.com/wp-content/uploads/2023/08/Stremio-logo-dark-background-1024x570.png',
+      logo: 'https://blog.stremio.com/wp-content/uploads/2023/08/Stremio-logo-dark-background-1024x570.png'
     };
     
+    // Set proper headers untuk Stremio
     res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Access-Control-Allow-Origin': '*'
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
     });
+    
     res.end(JSON.stringify(manifest));
-    return; // ✅ Done - don't serve static file
+    return; // ✅ Done - jangan serve static file
   }
 
-  // 📦 SERVE STATIC FILES (including index.html with inline JS)
-  if (pathname === '/') pathname = '/index.html';
+  // 📦 SERVE STATIC FILES (index.html dengan inline CSS+JS)
+  if (pathname === '/' || pathname === '/index.html') {
+    pathname = '/index.html';
+  }
+  
   let filePath = path.join(__dirname, pathname);
   
-  // Security: prevent directory traversal
-  if (!filePath.startsWith(path.join(__dirname, '/'))) {
-    res.writeHead(403); res.end('Forbidden'); return;
+  // Security: cegah directory traversal attack
+  const rootDir = path.resolve(__dirname);
+  if (!filePath.startsWith(rootDir)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
   }
 
   const ext = path.extname(filePath).toLowerCase();
@@ -73,23 +108,43 @@ http.createServer((req, res) => {
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      // SPA fallback: if file not found & no extension, serve index.html
+      // SPA fallback: jika file tidak ditemukan & bukan asset, serve index.html
       if (err.code === 'ENOENT' && !ext) {
         fs.readFile(path.join(__dirname, 'index.html'), (e, d) => {
-          if (e) { res.writeHead(500); res.end('Server Error'); return; }
-          res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
+          if (e) {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Server Error');
+            return;
+          }
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
+          });
           res.end(d);
         });
       } else {
-        res.writeHead(404); res.end('Not Found');
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
       }
       return;
     }
-    // Cache policy: no-cache for HTML/JS/CSS, cache for assets
-    const cacheControl = ['.html', '.js', '.css'].includes(ext) 
-      ? 'no-store, no-cache, must-revalidate' 
-      : 'public, max-age=3600';
-    res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': cacheControl });
+    
+    // Cache policy: no-cache untuk HTML/JS/CSS, cache untuk assets
+    const noCacheExts = ['.html', '.js', '.css'];
+    const cacheControl = noCacheExts.includes(ext)
+      ? 'no-store, no-cache, must-revalidate, private'
+      : 'public, max-age=3600, immutable';
+    
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl
+    });
     res.end(data);
   });
-}).listen(PORT, () => console.log(`✅ Torrio running on port ${PORT}`));
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Torrio server running on port ${PORT}`);
+  console.log(`   Frontend: http://localhost/`);
+  console.log(`   Manifest: http://localhost/<CONFIG>/manifest.json`);
+});
