@@ -631,24 +631,12 @@ document
       const upstreamUrlsString = urls.join("\n");
 
       // Parse credentials from jacktorrHost input
-      let finalHost = jacktorrHost;
-      let finalPassword = "";
-      try {
-         // Ensure protocol is present for URL parsing
-         const strForUrl = jacktorrHost.includes("://") ? jacktorrHost : "http://" + jacktorrHost;
-         const url = new URL(strForUrl);
-
-         if (url.username || url.password) {
-             finalPassword = url.password; // Extract password
-             finalHost = url.origin; // Use clean origin as host
-         }
-      } catch (e) {
-         // If parsing fails, use original values
-      }
+      let finalHost = jacktorrHost.trim();
 
       const formData = {
         jacktorr_host: finalHost,
-        jacktorr_password: finalPassword,
+        jacktorr_username: document.getElementById("jacktorrUsername").value.trim(),
+        jacktorr_password: document.getElementById("jacktorrPassword").value.trim(),
         upstream_url: upstreamUrlsString,
         upstream_filters: filterFlags,
         upstream_direct: directFlags,
