@@ -1,18 +1,26 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Other files and folders
-.settings/
+# Docker
+.env
+*.log
+docker-compose.override.yml
+.docker/
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# Node / Build
+node_modules/
+dist/
+build/
+*.cache
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Temporary files
+*.tmp
+*.temp
+
+# GitHub Pages
+_site/
