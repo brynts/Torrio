@@ -2,8 +2,7 @@ FROM nginx:alpine
 
 COPY . /usr/share/nginx/html
 
-# Optional: Add to nginx.conf if you want to customize it (later)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
