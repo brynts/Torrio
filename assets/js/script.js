@@ -1,46 +1,4 @@
-// manifest gen
-(function () {
-    const path = window.location.pathname;
-    if (!path.endsWith("/manifest.json")) return;
-
-    // base64 ftom path
-    const parts = path.split("/").filter(p => p);
-    const configStr = parts[parts.length - 2];   // ambil bagian base64
-
-    if (!configStr) {
-        document.documentElement.innerHTML = `<h1 style="color:red;padding:20px">Invalid manifest URL</h1>`;
-        return;
-    }
-
-    try {
-        const decoded = safeAtob(configStr);
-        const config = JSON.parse(decoded);
-
-        // manifest JSON for Stremio
-        const manifest = {
-            id: "com.torrio." + Math.random().toString(36).substring(7),
-            name: "Torrio",
-            version: "1.0.0",
-            description: "Tor Fast Config - Torrentio + Jackett + Custom",
-            resources: ["stream"],
-            types: ["movie", "series"],
-            catalogs: [],
-            behaviorHints: {
-                configurable: true,
-                configurationRequired: false
-            },
-            // Parsed Config
-            config: config
-        };
-
-        // Output JSON + header
-        document.open();
-        document.write(JSON.stringify(manifest, null, 2));
-        document.close();
-    } catch (e) {
-        document.documentElement.innerHTML = `<h1 style="color:red;padding:20px">Manifest Error: ${e.message}</h1>`;
-    }
-})();
+if(window.location.pathname.endsWith("/manifest.json")){const p=window.location.pathname.split("/").filter(Boolean);const c=p[p.length-2];if(c){try{const d=safeAtob(c);const config=JSON.parse(d);const m={id:"torrio.config",name:"Torrio",version:"1.0.0",description:"Tor Fast Config",resources:["stream"],types:["movie","series"],catalogs:[],behaviorHints:{configurable:true,configurationRequired:false}};document.open();document.write(JSON.stringify(m,null,2));document.close();return;}catch(e){}}}
 
 function safeBtoa(str) {
   try {
