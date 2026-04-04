@@ -1,5 +1,3 @@
-if(window.location.pathname.endsWith("/manifest.json")){const p=window.location.pathname.split("/").filter(Boolean);const c=p[p.length-2];if(c){try{const d=safeAtob(c);const config=JSON.parse(d);const m={id:"torrio.config",name:"Torrio",version:"1.0.0",description:"Tor Fast Config",resources:["stream"],types:["movie","series"],catalogs:[],behaviorHints:{configurable:true,configurationRequired:false}};document.open();document.write(JSON.stringify(m,null,2));document.close();return;}catch(e){}}}
-
 function safeBtoa(str) {
   try {
     return btoa(
