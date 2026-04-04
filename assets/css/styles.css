@@ -1,3 +1,6 @@
+/* =========================================
+   Global & Layout
+   ========================================= */
 body {
   font-family: Arial, sans-serif;
   background-color: #111;
@@ -9,6 +12,7 @@ body {
   align-items: center;
   min-height: 100vh;
 }
+
 .container {
   background-color: #222;
   padding: 30px;
@@ -17,19 +21,26 @@ body {
   width: 100%;
   max-width: 500px;
 }
+
 h1 {
   text-align: center;
   margin-bottom: 20px;
   color: #bfa;
 }
+
+/* =========================================
+   Form Elements
+   ========================================= */
 .form-group {
   margin-bottom: 15px;
 }
+
 label {
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
 }
+
 input[type="text"],
 input[type="number"],
 input[type="password"] {
@@ -41,6 +52,7 @@ input[type="password"] {
   color: #fff;
   box-sizing: border-box;
 }
+
 button {
   width: 100%;
   padding: 10px;
@@ -53,15 +65,20 @@ button {
   font-weight: bold;
   margin-top: 10px;
 }
+
 button:hover {
   background-color: #45a049;
 }
+
 .help-text {
   font-size: 0.8em;
   color: #aaa;
   margin-top: 5px;
 }
-/* Dynamic Input Styles */
+
+/* =========================================
+   Dynamic Input Styles
+   ========================================= */
 .url-input-group {
   display: flex;
   flex-direction: column;
@@ -71,14 +88,17 @@ button:hover {
   background-color: #2a2a2a;
   border-radius: 6px;
 }
+
 .url-input-row {
   display: flex;
   gap: 10px;
   align-items: center;
 }
+
 .url-input-row input[type="text"] {
   flex: 1;
 }
+
 .url-filter-row {
   display: flex;
   align-items: center;
@@ -86,6 +106,7 @@ button:hover {
   padding-left: 5px;
   flex-wrap: wrap;
 }
+
 .url-filter-row label {
   display: flex;
   align-items: center;
@@ -96,50 +117,60 @@ button:hover {
   margin: 0;
   font-weight: normal;
 }
+
 .url-filter-row input[type="checkbox"] {
   width: 14px;
   height: 14px;
   accent-color: #4caf50;
   cursor: pointer;
 }
+
 .url-filter-row .direct-link-label {
   color: #ff9800;
 }
+
 .url-filter-row .direct-link-label input[type="checkbox"] {
   accent-color: #ff9800;
 }
+
 .remove-btn {
   background-color: #f44336;
-  width: 40px; /* Fixed width for icon feel */
-  margin-top: 0; /* Override generic button margin */
+  width: 40px;
+  margin-top: 0;
   padding: 0;
-  height: 38px; /* Match input height roughly */
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   line-height: 1;
 }
+
 .remove-btn:hover {
   background-color: #d32f2f;
 }
+
 .add-btn {
   background-color: #2196f3;
   margin-top: 5px;
   width: auto;
   padding: 8px 15px;
 }
+
 .add-btn:hover {
   background-color: #0b7dda;
 }
 
-/* Filter Styles */
+/* =========================================
+   Filter Styles
+   ========================================= */
 .filter-section {
   background-color: #2a2a2a;
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 10px;
 }
+
 .filter-title {
   font-weight: bold;
   color: #4caf50;
@@ -152,6 +183,7 @@ button:hover {
   position: relative;
   width: 100%;
 }
+
 .multi-select-tags {
   display: flex;
   flex-wrap: wrap;
@@ -164,10 +196,12 @@ button:hover {
   cursor: pointer;
   transition: border-color 0.2s;
 }
+
 .multi-select-tags:hover,
 .multi-select.open .multi-select-tags {
   border-color: #7c4dff;
 }
+
 .multi-select-tag {
   display: flex;
   align-items: center;
@@ -178,6 +212,7 @@ button:hover {
   border-radius: 4px;
   font-size: 0.85em;
 }
+
 .multi-select-tag-remove {
   cursor: pointer;
   color: #aaa;
@@ -185,13 +220,16 @@ button:hover {
   font-size: 1.1em;
   line-height: 1;
 }
+
 .multi-select-tag-remove:hover {
   color: #f44336;
 }
+
 .multi-select-placeholder {
   color: #888;
   font-size: 0.9em;
 }
+
 .multi-select-dropdown {
   position: absolute;
   top: 100%;
@@ -206,9 +244,11 @@ button:hover {
   z-index: 100;
   display: none;
 }
+
 .multi-select.open .multi-select-dropdown {
   display: block;
 }
+
 .multi-select-option {
   padding: 10px 12px;
   cursor: pointer;
@@ -217,22 +257,27 @@ button:hover {
   gap: 8px;
   transition: background-color 0.15s;
 }
+
 .multi-select-option:hover {
   background-color: #333;
 }
+
 .multi-select-option.selected {
   background-color: #2a2a2a;
 }
+
 .multi-select-option.selected::before {
   content: "✓";
   color: #4caf50;
   font-weight: bold;
 }
+
 /* Show order number if present */
 .multi-select-option.selected[data-order]::before {
   content: attr(data-order);
-  color: #2196f3; /* Different color for sorting */
+  color: #2196f3;
 }
+
 .multi-select-option:not(.selected)::before {
   content: "";
   width: 14px;
@@ -244,6 +289,7 @@ button:hover {
   flex-wrap: wrap;
   gap: 8px;
 }
+
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -255,15 +301,18 @@ button:hover {
   font-size: 0.85em;
   transition: background-color 0.2s;
 }
+
 .checkbox-label:hover {
   background-color: #444;
 }
+
 .checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
   accent-color: #4caf50;
 }
+
 .checkbox-label input[type="radio"] {
   width: 16px;
   height: 16px;
@@ -271,7 +320,9 @@ button:hover {
   accent-color: #4caf50;
 }
 
-/* Collapsible Instructions */
+/* =========================================
+   Collapsible Instructions
+   ========================================= */
 .collapsible {
   background-color: #333;
   color: #eee;
@@ -321,14 +372,17 @@ button:hover {
   border-bottom: 1px solid #444;
   padding-bottom: 10px;
 }
+
 .instruction-block:last-child {
   border-bottom: none;
 }
+
 .instruction-title {
   font-weight: bold;
   color: #2196f3;
   margin-bottom: 5px;
 }
+
 .instruction-code {
   background-color: #111;
   padding: 8px;
@@ -338,15 +392,20 @@ button:hover {
   word-break: break-all;
   font-size: 0.9em;
 }
+
+/* =========================================
+   Donation Section
+   ========================================= */
 .donation-qr {
   width: 100%;
-  max-width: 200px; /* Slightly smaller for elegance */
+  max-width: 200px;
   margin: 15px auto;
   display: block;
   border-radius: 12px;
   border: 4px solid #d4af37; /* Gold border */
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
 }
+
 .donation-text {
   text-align: center;
   color: #d4af37; /* Gold text */
@@ -356,19 +415,19 @@ button:hover {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   text-transform: uppercase;
   letter-spacing: 1px;
-  word-wrap: break-word; /* Ensure wrapping */
+  word-wrap: break-word;
   line-height: 1.4;
 }
 
 /* Mobile optimization */
 @media (max-width: 480px) {
   .donation-text {
-    font-size: 0.75em; /* Much smaller to fit single line */
+    font-size: 0.75em;
     letter-spacing: 0;
     margin-bottom: 10px;
   }
   .donation-content-box {
-    padding: 15px 10px; /* Reduce padding */
+    padding: 15px 10px;
   }
 }
 
@@ -391,6 +450,7 @@ button:hover {
   transition: all 0.3s ease;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
+
 .donation-btn-gold:hover {
   background: linear-gradient(
     135deg,
