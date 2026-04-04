@@ -1,41 +1,9 @@
-// ================== MANIFEST GENERATOR (paling atas) ==================
-if (window.location.pathname.endsWith("/manifest.json")) {
-    const p = window.location.pathname.split("/").filter(Boolean);
-    const c = p[p.length - 2];
-    if (c) {
-        try {
-            const d = safeAtob(c);
-            const config = JSON.parse(d);
-            const m = {
-                id: "torrio.config",
-                name: "Torrio",
-                version: "1.0.0",
-                description: "Tor Fast Config",
-                resources: ["stream"],
-                types: ["movie", "series"],
-                catalogs: [],
-                behaviorHints: {
-                    configurable: true,
-                    configurationRequired: false
-                }
-            };
-            document.open();
-            document.write(JSON.stringify(m, null, 2));
-            document.close();
-            return;
-        } catch (e) {}
-    }
-}
-
 function safeBtoa(str) {
   try {
     return btoa(
-      encodeURIComponent(str).replace(
-        /%([0-9A-F]{2})/g,
-        function (match, p1) {
-          return String.fromCharCode("0x" + p1);
-        }
-      )
+      encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+        return String.fromCharCode("0x" + p1);
+      })
     );
   } catch (e) {
     console.error("Base64 encoding failed:", e);
@@ -43,10 +11,11 @@ function safeBtoa(str) {
   }
 }
 
+// =========================================
 // Collapsible Logic
+// =========================================
 var coll = document.getElementsByClassName("collapsible");
 var i;
-
 for (i = 0; i < coll.length; i++) {
   coll[i].addEventListener("click", function () {
     this.classList.toggle("active");
@@ -59,7 +28,9 @@ for (i = 0; i < coll.length; i++) {
   });
 }
 
+// =========================================
 // Dynamic URL Input Logic
+// =========================================
 const container = document.getElementById("upstreamUrlContainer");
 const addBtn = document.getElementById("addUrlBtn");
 
@@ -68,16 +39,16 @@ function cleanUrl(url) {
   if (!cleaned) return "";
 
   // Fix protocol
-  if (cleaned.startsWith("stremio://"))
+  if (cleaned.startsWith("stremio://")) {
     cleaned = cleaned.replace("stremio://", "https://");
-  else if (cleaned.startsWith("stremios://"))
+  } else if (cleaned.startsWith("stremios://")) {
     cleaned = cleaned.replace("stremios://", "https://");
-  else if (!cleaned.startsWith("http")) cleaned = "https://" + cleaned;
+  } else if (!cleaned.startsWith("http")) {
+    cleaned = "https://" + cleaned;
+  }
 
   // Remove manifest.json and trailing slashes
-  // Matches /manifest.json with optional trailing slash
   cleaned = cleaned.replace(/\/manifest\.json\/?$/, "");
-
   // Remove trailing slash if it exists after removing manifest
   if (cleaned.endsWith("/")) cleaned = cleaned.slice(0, -1);
 
@@ -109,7 +80,7 @@ function addUrlInput(value = "", applyFilter = true, directLink = false) {
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
   removeBtn.className = "remove-btn";
-  removeBtn.innerHTML = "&times;"; // Multiplication sign as X
+  removeBtn.innerHTML = "&times;";
   removeBtn.onclick = function () {
     container.removeChild(div);
   };
@@ -127,11 +98,8 @@ function addUrlInput(value = "", applyFilter = true, directLink = false) {
   filterCheckbox.type = "checkbox";
   filterCheckbox.className = "url-filter-checkbox";
   filterCheckbox.checked = applyFilter;
-
   filterLabel.appendChild(filterCheckbox);
-  filterLabel.appendChild(
-    document.createTextNode(" Apply global filters")
-  );
+  filterLabel.appendChild(document.createTextNode(" Apply global filters"));
   filterRow.appendChild(filterLabel);
 
   // Direct link checkbox
@@ -141,7 +109,6 @@ function addUrlInput(value = "", applyFilter = true, directLink = false) {
   directCheckbox.type = "checkbox";
   directCheckbox.className = "url-direct-checkbox";
   directCheckbox.checked = directLink;
-
   directLabel.appendChild(directCheckbox);
   directLabel.appendChild(document.createTextNode(" Use direct link"));
   filterRow.appendChild(directLabel);
@@ -153,7 +120,9 @@ function addUrlInput(value = "", applyFilter = true, directLink = false) {
 
 addBtn.addEventListener("click", () => addUrlInput());
 
-// Parse existing config from URL if present
+// =========================================
+// Parse existing config from URL
+// =========================================
 function safeAtob(str) {
   try {
     // Handle URL safe base64
@@ -180,17 +149,13 @@ function safeAtob(str) {
 
 function loadConfigFromUrl() {
   try {
-    const pathParts = window.location.pathname
-      .split("/")
-      .filter((p) => p);
+    const pathParts = window.location.pathname.split("/").filter((p) => p);
     console.log("Path parts:", pathParts);
 
     // Find config string - it's the part that's NOT 'configure' and looks like base64
     let configStr = null;
     for (const part of pathParts) {
-      // Skip 'configure' and other known routes
       if (part === "configure" || part === "manifest.json") continue;
-      // Config string should be base64-like (alphanumeric, -, _)
       if (/^[A-Za-z0-9_-]+$/.test(part) && part.length > 10) {
         configStr = part;
         break;
@@ -203,15 +168,12 @@ function loadConfigFromUrl() {
       if (decoded) {
         const config = JSON.parse(decoded);
         console.log("Loaded config:", config);
-
         let configLoaded = false;
 
         // Pre-fill form fields
         if (config.jacktorr_host) {
-          // Handle legacy config with separate port
           let hostValue = config.jacktorr_host;
           if (config.jacktorr_port && config.jacktorr_port !== 0) {
-            // Check if host already contains port
             try {
               const url = new URL(hostValue);
               if (!url.port) {
@@ -219,18 +181,18 @@ function loadConfigFromUrl() {
                 hostValue = url.toString().replace(/\/$/, "");
               }
             } catch (e) {
-              // If not a valid URL, just append port
               hostValue = `${hostValue}:${config.jacktorr_port}`;
             }
           }
           document.getElementById("jacktorrHost").value = hostValue;
           configLoaded = true;
         }
+
         if (config.max_streams !== undefined) {
-          document.getElementById("maxStreams").value =
-            config.max_streams;
+          document.getElementById("maxStreams").value = config.max_streams;
           configLoaded = true;
         }
+
         if (config.tor_fast_sync) {
           document.getElementById("torFastSync").checked = true;
           configLoaded = true;
@@ -240,20 +202,19 @@ function loadConfigFromUrl() {
         if (config.mediaflow_proxy_url) {
           const el = document.getElementById("mediaflowProxyUrl");
           if (el) el.value = config.mediaflow_proxy_url;
-          
-          // Enable checkbox and show fields
           const cb = document.getElementById("mediaflowEnabled");
           if (cb) {
-              cb.checked = true;
-              // Trigger change event to update UI visibility
-              cb.dispatchEvent(new Event('change'));
+            cb.checked = true;
+            cb.dispatchEvent(new Event("change"));
           }
           configLoaded = true;
         }
+
         if (config.mediaflow_api_password) {
           const el = document.getElementById("mediaflowApiPassword");
           if (el) el.value = config.mediaflow_api_password;
         }
+
         if (config.mediaflow_public_ip) {
           const el = document.getElementById("mediaflowPublicIp");
           if (el) el.value = config.mediaflow_public_ip;
@@ -261,20 +222,15 @@ function loadConfigFromUrl() {
 
         // Pre-fill upstream URLs
         if (config.upstream_url) {
-          const urls = config.upstream_url
-            .split("\n")
-            .filter((u) => u.trim());
+          const urls = config.upstream_url.split(" ").filter((u) => u.trim());
           const filterFlags = config.upstream_filters || [];
           const directFlags = config.upstream_direct || [];
+
           if (urls.length > 0) {
-            // Clear any existing URLs first
             container.innerHTML = "";
-            // Add saved URLs
             urls.forEach((url, idx) => {
-              const applyFilter =
-                filterFlags.length > idx ? filterFlags[idx] : true;
-              const directLink =
-                directFlags.length > idx ? directFlags[idx] : false;
+              const applyFilter = filterFlags.length > idx ? filterFlags[idx] : true;
+              const directLink = directFlags.length > idx ? directFlags[idx] : false;
               addUrlInput(url, applyFilter, directLink);
             });
             configLoaded = true;
@@ -287,20 +243,18 @@ function loadConfigFromUrl() {
           configLoaded = true;
         }
 
-        return configLoaded; // Return true if any config was loaded
+        return configLoaded;
       }
     }
   } catch (e) {
     console.error("Error loading config from URL:", e);
   }
-  return false; // No config loaded
+  return false;
 }
 
 // Helper function to get checked checkbox values
 function getCheckedValues(name) {
-  const checkboxes = document.querySelectorAll(
-    `input[name="${name}"]:checked`
-  );
+  const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
   return Array.from(checkboxes).map((cb) => cb.value);
 }
 
@@ -313,14 +267,11 @@ function setCheckedValues(name, values) {
   });
 }
 
+// =========================================
 // Multi-select component
+// =========================================
 class MultiSelect {
-  constructor(
-    element,
-    singleSelect = false,
-    placeholder = "Select to filter...",
-    maxSelection = null
-  ) {
+  constructor(element, singleSelect = false, placeholder = "Select to filter...", maxSelection = null) {
     this.element = element;
     this.name = element.dataset.name;
     this.tagsContainer = element.querySelector(".multi-select-tags");
@@ -330,25 +281,21 @@ class MultiSelect {
     this.singleSelect = singleSelect;
     this.placeholder = placeholder;
     this.maxSelection = maxSelection;
-
     this.init();
   }
 
   init() {
-    // Toggle dropdown on click
     this.tagsContainer.addEventListener("click", (e) => {
       if (e.target.classList.contains("multi-select-tag-remove")) return;
       this.toggle();
     });
 
-    // Option click
     this.options.forEach((option) => {
       option.addEventListener("click", () => {
         this.toggleOption(option.dataset.value);
       });
     });
 
-    // Close on outside click
     document.addEventListener("click", (e) => {
       if (!this.element.contains(e.target)) {
         this.close();
@@ -368,22 +315,15 @@ class MultiSelect {
 
   toggleOption(value) {
     if (this.singleSelect) {
-      // Single select mode - replace value and close dropdown
       this.selectedValues = [value];
       this.render();
       this.close();
     } else {
-      // Multi select mode
       const idx = this.selectedValues.indexOf(value);
       if (idx > -1) {
         this.selectedValues.splice(idx, 1);
       } else {
-        // Check max selection limit
-        if (
-          this.maxSelection !== null &&
-          this.selectedValues.length >= this.maxSelection
-        ) {
-          // Auto-remove the first item (FIFO) to allow new selection
+        if (this.maxSelection !== null && this.selectedValues.length >= this.maxSelection) {
           this.selectedValues.shift();
         }
         this.selectedValues.push(value);
@@ -393,7 +333,7 @@ class MultiSelect {
   }
 
   removeValue(value) {
-    if (this.singleSelect) return; // Don't allow removal in single select
+    if (this.singleSelect) return;
     const idx = this.selectedValues.indexOf(value);
     if (idx > -1) {
       this.selectedValues.splice(idx, 1);
@@ -406,22 +346,14 @@ class MultiSelect {
       this.selectedValues = values.length > 0 ? [values[0]] : [];
     } else {
       this.selectedValues = values || [];
-      // Enforce max limit on load if needed
-      if (
-        this.maxSelection !== null &&
-        this.selectedValues.length > this.maxSelection
-      ) {
-        this.selectedValues = this.selectedValues.slice(
-          0,
-          this.maxSelection
-        );
+      if (this.maxSelection !== null && this.selectedValues.length > this.maxSelection) {
+        this.selectedValues = this.selectedValues.slice(0, this.maxSelection);
       }
     }
     this.render();
   }
 
   setValue(value) {
-    // Handle single value setting (convert to array)
     this.setValues([value]);
   }
 
@@ -430,14 +362,11 @@ class MultiSelect {
   }
 
   getValue() {
-    // For backward compatibility / single value
     return this.selectedValues.length > 0 ? this.selectedValues[0] : null;
   }
 
   render() {
-    // Update tags
     this.tagsContainer.innerHTML = "";
-
     if (this.selectedValues.length === 0) {
       const placeholder = document.createElement("span");
       placeholder.className = "multi-select-placeholder";
@@ -445,44 +374,35 @@ class MultiSelect {
       this.tagsContainer.appendChild(placeholder);
     } else {
       this.selectedValues.forEach((value, index) => {
-        const option = this.element.querySelector(
-          `[data-value="${value}"]`
-        );
+        const option = this.element.querySelector(`[data-value="${value}"]`);
         if (option) {
           const tag = document.createElement("span");
           tag.className = "multi-select-tag";
-
           let content = option.textContent;
-          // If maxSelection is active (like sorting), show number
+
           if (this.maxSelection !== null && !this.singleSelect) {
             content = `${index + 1}. ${content}`;
           }
 
           if (this.singleSelect) {
-            // Single select - no remove button
             tag.textContent = content;
           } else {
-            // Multi select - with remove button
             tag.innerHTML = `${content} <span class="multi-select-tag-remove" data-value="${value}">×</span>`;
-            tag
-              .querySelector(".multi-select-tag-remove")
-              .addEventListener("click", (e) => {
-                e.stopPropagation();
-                this.removeValue(value);
-              });
+            tag.querySelector(".multi-select-tag-remove").addEventListener("click", (e) => {
+              e.stopPropagation();
+              this.removeValue(value);
+            });
           }
           this.tagsContainer.appendChild(tag);
         }
       });
     }
 
-    // Update options
     this.options.forEach((option) => {
       const val = option.dataset.value;
       const idx = this.selectedValues.indexOf(val);
       if (idx > -1) {
         option.classList.add("selected");
-        // Also show number in dropdown if sorting
         if (this.maxSelection !== null && !this.singleSelect) {
           option.setAttribute("data-order", idx + 1);
         }
@@ -494,7 +414,9 @@ class MultiSelect {
   }
 }
 
-// Initialize multi-selects
+// =========================================
+// Initialize & Event Listeners
+// =========================================
 const multiSelects = {};
 document.querySelectorAll(".multi-select").forEach((el) => {
   let isSingleSelect = false;
@@ -502,30 +424,25 @@ document.querySelectorAll(".multi-select").forEach((el) => {
   let placeholder = "Select to filter...";
 
   if (el.id === "sortBySelect") {
-    isSingleSelect = false; // Changed to multi
-    maxSelection = 2; // Max 2
+    isSingleSelect = false;
+    maxSelection = 2;
     placeholder = "Select sort order (max 2)...";
   }
-
   if (el.id === "languageSelect") {
     placeholder = "All languages (select to filter)";
   }
-  multiSelects[el.id] = new MultiSelect(
-    el,
-    isSingleSelect,
-    placeholder,
-    maxSelection
-  );
+
+  multiSelects[el.id] = new MultiSelect(el, isSingleSelect, placeholder, maxSelection);
 });
 
 // Set default values
 multiSelects.resolutionSelect.setValues(["4k", "1080p"]);
 multiSelects.qualitySelect.setValues(["bluray", "webdl"]);
 multiSelects.hdrSelect.setValues(["hdr10plus", "hdr10", "hdr", "sdr"]);
-multiSelects.languageSelect.setValues([]); // Default: All (empty = no filter)
+multiSelects.languageSelect.setValues([]);
 multiSelects.sortBySelect.setValues(["resolution", "seeders"]);
 
-// 3D filter logic - "Chỉ hiện 3D" only enabled when "Ẩn 3D" is unchecked
+// 3D filter logic
 const filter3dOnly = document.getElementById("filter3dOnly");
 const filterHide3d = document.getElementById("filterHide3d");
 
@@ -549,13 +466,13 @@ filter3dOnly.addEventListener("change", function () {
 // Mediaflow Toggle Logic
 const mediaflowEnabledCbox = document.getElementById("mediaflowEnabled");
 const mediaflowFieldsDiv = document.getElementById("mediaflowFields");
-
-mediaflowEnabledCbox.addEventListener("change", function() {
+mediaflowEnabledCbox.addEventListener("change", function () {
   mediaflowFieldsDiv.style.display = this.checked ? "block" : "none";
 });
 
 function loadFilters(filters) {
   if (!filters) return;
+
   if (filters.resolution && multiSelects.resolutionSelect) {
     multiSelects.resolutionSelect.setValues(filters.resolution);
   }
@@ -568,9 +485,9 @@ function loadFilters(filters) {
   if (filters.language && multiSelects.languageSelect) {
     multiSelects.languageSelect.setValues(filters.language);
   }
+
   if (filters.hide3d !== undefined) {
     filterHide3d.checked = filters.hide3d;
-    // Update 3D only checkbox state based on hide3d
     if (filters.hide3d) {
       filter3dOnly.checked = false;
       filter3dOnly.disabled = true;
@@ -585,7 +502,7 @@ function loadFilters(filters) {
   } else if (filters.show3d !== undefined) {
     filter3dOnly.checked = filters.show3d;
   }
-  // Load sort_by
+
   if (filters.sort_by && multiSelects.sortBySelect) {
     if (Array.isArray(filters.sort_by)) {
       multiSelects.sortBySelect.setValues(filters.sort_by);
@@ -595,136 +512,118 @@ function loadFilters(filters) {
   }
 }
 
-// NOW load config from URL after everything is initialized
+// Load config from URL after initialization
 if (!loadConfigFromUrl()) {
-  addUrlInput(
-    "https://torrentio.strem.fun/qualityfilter=dolbyvision,dolbyvisionwithhdr,threed,720p,480p,other,scr,cam,unknown"
-  );
+  addUrlInput("https://torrentio.strem.fun/qualityfilter=dolbyvision,dolbyvisionwithhdr,threed,720p,480p,other,scr,cam,unknown");
 }
 
-document
-  .getElementById("configForm")
-  .addEventListener("submit", function (e) {
-    e.preventDefault();
-    const statusDiv = document.getElementById("statusMessage");
-    statusDiv.innerText = "";
+// Form Submit Handler
+document.getElementById("configForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const statusDiv = document.getElementById("statusMessage");
+  statusDiv.innerText = "";
 
-    try {
-      // Validate TorrServer Host
-      const jacktorrHost = document
-        .getElementById("jacktorrHost")
-        .value.trim();
-      if (!jacktorrHost) {
-        statusDiv.innerText =
-          "⚠️ Please enter TorrServer Host to continue!";
-        statusDiv.style.color = "#f44336";
-        document.getElementById("jacktorrHost").focus();
-        document.getElementById("jacktorrHost").style.borderColor =
-          "#f44336";
-        return;
-      }
-
-      // Reset border color if valid
-      document.getElementById("jacktorrHost").style.borderColor = "#444";
-      statusDiv.style.color = "yellow";
-
-      // Collect all URL inputs and their filter/direct states
-      const urlGroups = document.querySelectorAll(".url-input-group");
-      let urls = [];
-      let filterFlags = [];
-      let directFlags = [];
-
-      urlGroups.forEach((group) => {
-        const input = group.querySelector(".url-input-field");
-        const filterCheckbox = group.querySelector(".url-filter-checkbox");
-        const directCheckbox = group.querySelector(".url-direct-checkbox");
-        
-        if (input) {
-            const val = cleanUrl(input.value);
-            if (val) {
-              urls.push(val);
-              filterFlags.push(
-                filterCheckbox ? filterCheckbox.checked : true
-              );
-              directFlags.push(
-                directCheckbox ? directCheckbox.checked : false
-              );
-            }
-        }
-      });
-
-      if (urls.length === 0) {
-        // If no valid URLs, maybe warn or allow empty? Let's treat as empty list.
-      }
-
-      const upstreamUrlsString = urls.join("\n");
-
-      // Parse credentials from jacktorrHost input
-      let finalHost = jacktorrHost.trim();
-
-      const formData = {
-        jacktorr_host: finalHost,
-        jacktorr_username: document.getElementById("jacktorrUsername").value.trim(),
-        jacktorr_password: document.getElementById("jacktorrPassword").value.trim(),
-        upstream_url: upstreamUrlsString,
-        upstream_filters: filterFlags,
-        upstream_direct: directFlags,
-        tor_fast_sync: document.getElementById("torFastSync").checked,
-        max_streams:
-          parseInt(document.getElementById("maxStreams").value.trim()) ||
-          20,
-        mediaflow_proxy_url: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowProxyUrl") ? document.getElementById("mediaflowProxyUrl").value.trim() : "",
-        mediaflow_api_password: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowApiPassword") ? document.getElementById("mediaflowApiPassword").value.trim() : "",
-        mediaflow_public_ip: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowPublicIp") ? document.getElementById("mediaflowPublicIp").value.trim() : "",
-        // Global filters
-        filters: {
-          resolution: multiSelects.resolutionSelect.getValues(),
-          quality: multiSelects.qualitySelect.getValues(),
-          hdr: multiSelects.hdrSelect.getValues(),
-          language: multiSelects.languageSelect.getValues(),
-          show3d: filter3dOnly.checked,
-          hide3d: filterHide3d.checked,
-          sort_by: multiSelects.sortBySelect.getValues(),
-        },
-      };
-
-      const jsonStr = JSON.stringify(formData);
-      const base64Str = safeBtoa(jsonStr)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, ""); // URL safe base64
-
-      const currentHost = window.location.host;
-      // Force HTTPS as requested
-      const protocol = "https:";
-
-      const installUrl = `${protocol}//${currentHost}/${base64Str}/manifest.json`;
-
-      // Show result
-      document.getElementById("generatedLink").value = installUrl;
-      document.getElementById("resultArea").style.display = "block";
-
-      // Update install button to use stremio protocol for direct opening
-      const stremioUrl = installUrl.replace(/^https?:\/\//, "stremio://");
-      const installBtn = document.getElementById("installBtn");
-      installBtn.href = stremioUrl;
-
-      // Add click listener to ensure it opens
-      installBtn.onclick = function (e) {
-        console.log("Opening Stremio URL:", stremioUrl);
-      };
-    } catch (err) {
-      statusDiv.innerText = "Error: " + err.message;
-      console.error(err);
+  try {
+    // Validate TorrServer Host
+    const jacktorrHost = document.getElementById("jacktorrHost").value.trim();
+    if (!jacktorrHost) {
+      statusDiv.innerText = "⚠️ Please enter TorrServer Host to continue!";
+      statusDiv.style.color = "#f44336";
+      document.getElementById("jacktorrHost").focus();
+      document.getElementById("jacktorrHost").style.borderColor = "#f44336";
+      return;
     }
-  });
 
+    document.getElementById("jacktorrHost").style.borderColor = "#444";
+    statusDiv.style.color = "yellow";
+
+    // Collect all URL inputs and their filter/direct states
+    const urlGroups = document.querySelectorAll(".url-input-group");
+    let urls = [];
+    let filterFlags = [];
+    let directFlags = [];
+
+    urlGroups.forEach((group) => {
+      const input = group.querySelector(".url-input-field");
+      const filterCheckbox = group.querySelector(".url-filter-checkbox");
+      const directCheckbox = group.querySelector(".url-direct-checkbox");
+      if (input) {
+        const val = cleanUrl(input.value);
+        if (val) {
+          urls.push(val);
+          filterFlags.push(filterCheckbox ? filterCheckbox.checked : true);
+          directFlags.push(directCheckbox ? directCheckbox.checked : false);
+        }
+      }
+    });
+
+    const upstreamUrlsString = urls.join(" ");
+
+    // Parse credentials from jacktorrHost input
+    let finalHost = jacktorrHost;
+    let finalPassword = "";
+    try {
+      const strForUrl = jacktorrHost.includes("://") ? jacktorrHost : "http://" + jacktorrHost;
+      const url = new URL(strForUrl);
+      if (url.username || url.password) {
+        finalPassword = url.password;
+        finalHost = url.origin;
+      }
+    } catch (e) {
+      // If parsing fails, use original values
+    }
+
+    const formData = {
+      jacktorr_host: finalHost,
+      jacktorr_password: finalPassword,
+      upstream_url: upstreamUrlsString,
+      upstream_filters: filterFlags,
+      upstream_direct: directFlags,
+      tor_fast_sync: document.getElementById("torFastSync").checked,
+      max_streams: parseInt(document.getElementById("maxStreams").value.trim()) || 20,
+      mediaflow_proxy_url: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowProxyUrl") ? document.getElementById("mediaflowProxyUrl").value.trim() : "",
+      mediaflow_api_password: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowApiPassword") ? document.getElementById("mediaflowApiPassword").value.trim() : "",
+      mediaflow_public_ip: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowPublicIp") ? document.getElementById("mediaflowPublicIp").value.trim() : "",
+      filters: {
+        resolution: multiSelects.resolutionSelect.getValues(),
+        quality: multiSelects.qualitySelect.getValues(),
+        hdr: multiSelects.hdrSelect.getValues(),
+        language: multiSelects.languageSelect.getValues(),
+        show3d: filter3dOnly.checked,
+        hide3d: filterHide3d.checked,
+        sort_by: multiSelects.sortBySelect.getValues(),
+      },
+    };
+
+    const jsonStr = JSON.stringify(formData);
+    const base64Str = safeBtoa(jsonStr).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const currentHost = window.location.host;
+    const protocol = "https:";
+    const installUrl = `${protocol}//${currentHost}/${base64Str}/manifest.json`;
+
+    // Show result
+    document.getElementById("generatedLink").value = installUrl;
+    document.getElementById("resultArea").style.display = "block";
+
+    // Update install button to use stremio protocol
+    const stremioUrl = installUrl.replace(/^https?:\/\//, "stremio://");
+    const installBtn = document.getElementById("installBtn");
+    installBtn.href = stremioUrl;
+    installBtn.onclick = function (e) {
+      console.log("Opening Stremio URL:", stremioUrl);
+    };
+  } catch (err) {
+    statusDiv.innerText = "Error: " + err.message;
+    console.error(err);
+  }
+});
+
+// Copy Button Handler
 document.getElementById("copyBtn").addEventListener("click", function () {
   const copyText = document.getElementById("generatedLink");
   copyText.select();
-  copyText.setSelectionRange(0, 99999); // For mobile devices
+  copyText.setSelectionRange(0, 99999);
 
-  // Internal helper to show status
   function showStatus(msg) {
     const status = document.getElementById("statusMessage");
     status.innerText = msg;
@@ -733,16 +632,11 @@ document.getElementById("copyBtn").addEventListener("click", function () {
     }, 3000);
   }
 
-  // Try modern API first (needs secure context)
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard
       .writeText(copyText.value)
-      .then(() => {
-        showStatus("Link copied to clipboard!");
-      })
-      .catch((err) => {
-        fallbackCopy();
-      });
+      .then(() => showStatus("Link copied to clipboard!"))
+      .catch(() => fallbackCopy());
   } else {
     fallbackCopy();
   }
