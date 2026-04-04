@@ -85,12 +85,7 @@
             id="jacktorrHost"
             name="jacktorrHost"
             placeholder="http://127.0.0.1:8090"
-            list="hostList"
           />
-          <datalist id="hostList">
-            <option value="http://127.0.0.1:8090"></option>
-            <option value="http://user:pass@192.168.1.100:8090"></option>
-          </datalist>
           <div class="help-text">
             <a
               href="https://github.com/YouROK/TorrServer"
@@ -98,6 +93,30 @@
               style="color: #2196f3"
               >Setup TorrServer →</a
             >
+          </div>
+        </div>
+
+        <!-- Username & Password for HTTP Auth TorrServer -->
+        <div class="form-group">
+          <label for="jacktorrUsername">TorrServer Username <span style="font-weight:normal; color:#aaa">(optional)</span></label>
+          <input
+            type="text"
+            id="jacktorrUsername"
+            name="jacktorrUsername"
+            placeholder="username (kosong jika tidak pakai auth)"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="jacktorrPassword">TorrServer Password <span style="font-weight:normal; color:#aaa">(optional)</span></label>
+          <input
+            type="password"
+            id="jacktorrPassword"
+            name="jacktorrPassword"
+            placeholder="password (kosong jika tidak pakai auth)"
+          />
+          <div class="help-text">
+            Diisi jika TorrServer pakai <code>--httpauth</code> atau <code>TS_HTTPAUTH=1</code> (accs.db)
           </div>
         </div>
         <div class="form-group">
