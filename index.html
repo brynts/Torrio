@@ -1,52 +1,489 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Torrio Config</title>
-    <link rel="stylesheet" href="assets/css/styles.css" />
+    <title>Tor Fast Config</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #111;
+        color: #eee;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      .container {
+        background-color: #222;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        width: 100%;
+        max-width: 500px;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #bfa;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        background-color: #333;
+        color: #fff;
+        box-sizing: border-box;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .help-text {
+        font-size: 0.8em;
+        color: #aaa;
+        margin-top: 5px;
+      }
+      /* Dynamic Input Styles */
+      .url-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 12px;
+        padding: 10px;
+        background-color: #2a2a2a;
+        border-radius: 6px;
+      }
+      .url-input-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .url-input-row input[type="text"] {
+        flex: 1;
+      }
+      .url-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding-left: 5px;
+        flex-wrap: wrap;
+      }
+      .url-filter-row label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.85em;
+        color: #aaa;
+        cursor: pointer;
+        margin: 0;
+        font-weight: normal;
+      }
+      .url-filter-row input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: #4caf50;
+        cursor: pointer;
+      }
+      .url-filter-row .direct-link-label {
+        color: #ff9800;
+      }
+      .url-filter-row .direct-link-label input[type="checkbox"] {
+        accent-color: #ff9800;
+      }
+      .remove-btn {
+        background-color: #f44336;
+        width: 40px; /* Fixed width for icon feel */
+        margin-top: 0; /* Override generic button margin */
+        padding: 0;
+        height: 38px; /* Match input height roughly */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .remove-btn:hover {
+        background-color: #d32f2f;
+      }
+      .add-btn {
+        background-color: #2196f3;
+        margin-top: 5px;
+        width: auto;
+        padding: 8px 15px;
+      }
+      .add-btn:hover {
+        background-color: #0b7dda;
+      }
+
+      /* Filter Styles */
+      .filter-section {
+        background-color: #2a2a2a;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .filter-title {
+        font-weight: bold;
+        color: #4caf50;
+        margin-bottom: 8px;
+        font-size: 0.9em;
+      }
+
+      /* Multi-select dropdown styles */
+      .multi-select {
+        position: relative;
+        width: 100%;
+      }
+      .multi-select-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        background-color: #333;
+        border: 2px solid #555;
+        border-radius: 6px;
+        min-height: 42px;
+        cursor: pointer;
+        transition: border-color 0.2s;
+      }
+      .multi-select-tags:hover,
+      .multi-select.open .multi-select-tags {
+        border-color: #7c4dff;
+      }
+      .multi-select-tag {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background-color: #444;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .multi-select-tag-remove {
+        cursor: pointer;
+        color: #aaa;
+        font-weight: bold;
+        font-size: 1.1em;
+        line-height: 1;
+      }
+      .multi-select-tag-remove:hover {
+        color: #f44336;
+      }
+      .multi-select-placeholder {
+        color: #888;
+        font-size: 0.9em;
+      }
+      .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #222;
+        border: 1px solid #444;
+        border-radius: 6px;
+        margin-top: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 100;
+        display: none;
+      }
+      .multi-select.open .multi-select-dropdown {
+        display: block;
+      }
+      .multi-select-option {
+        padding: 10px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.15s;
+      }
+      .multi-select-option:hover {
+        background-color: #333;
+      }
+      .multi-select-option.selected {
+        background-color: #2a2a2a;
+      }
+      .multi-select-option.selected::before {
+        content: "✓";
+        color: #4caf50;
+        font-weight: bold;
+      }
+      /* Show order number if present */
+      .multi-select-option.selected[data-order]::before {
+        content: attr(data-order);
+        color: #2196f3; /* Different color for sorting */
+      }
+      .multi-select-option:not(.selected)::before {
+        content: "";
+        width: 14px;
+      }
+
+      /* Legacy checkbox styles for 3D filter */
+      .filter-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background-color: #333;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: background-color 0.2s;
+      }
+      .checkbox-label:hover {
+        background-color: #444;
+      }
+      .checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #4caf50;
+      }
+      .checkbox-label input[type="radio"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #4caf50;
+      }
+
+      /* Collapsible Instructions */
+      .collapsible {
+        background-color: #333;
+        color: #eee;
+        cursor: pointer;
+        padding: 15px;
+        width: 100%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 16px;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .active,
+      .collapsible:hover {
+        background-color: #444;
+      }
+
+      .collapsible:after {
+        content: "\002B"; /* Plus icon */
+        color: #fff;
+        font-weight: bold;
+        float: right;
+        margin-left: 5px;
+      }
+
+      .active:after {
+        content: "\2212"; /* Minus icon */
+      }
+
+      .content {
+        padding: 0 18px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.2s ease-out;
+        background-color: #222;
+        border-radius: 0 0 4px 4px;
+        margin-bottom: 15px;
+      }
+
+      .instruction-block {
+        margin: 15px 0;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+      }
+      .instruction-block:last-child {
+        border-bottom: none;
+      }
+      .instruction-title {
+        font-weight: bold;
+        color: #2196f3;
+        margin-bottom: 5px;
+      }
+      .instruction-code {
+        background-color: #111;
+        padding: 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        color: #ff9800;
+        word-break: break-all;
+        font-size: 0.9em;
+      }
+      .donation-qr {
+        width: 100%;
+        max-width: 200px; /* Slightly smaller for elegance */
+        margin: 15px auto;
+        display: block;
+        border-radius: 12px;
+        border: 4px solid #d4af37; /* Gold border */
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+      }
+      .donation-text {
+        text-align: center;
+        color: #d4af37; /* Gold text */
+        margin-bottom: 15px;
+        font-weight: bold;
+        font-size: 1.1em;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        word-wrap: break-word; /* Ensure wrapping */
+        line-height: 1.4;
+      }
+
+      /* Mobile optimization */
+      @media (max-width: 480px) {
+        .donation-text {
+          font-size: 0.75em; /* Much smaller to fit single line */
+          letter-spacing: 0;
+          margin-bottom: 10px;
+        }
+        .donation-content-box {
+          padding: 15px 10px; /* Reduce padding */
+        }
+      }
+
+      /* Luxurious Donation Button */
+      .donation-btn-gold {
+        background: linear-gradient(
+          135deg,
+          #bf953f,
+          #fcf6ba,
+          #b38728,
+          #fbf5b7,
+          #aa771c
+        );
+        color: #4b3621; /* Dark brown text */
+        font-weight: bold;
+        text-align: center;
+        justify-content: center;
+        border: 1px solid #a08036;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+      }
+      .donation-btn-gold:hover {
+        background: linear-gradient(
+          135deg,
+          #aa771c,
+          #fbf5b7,
+          #b38728,
+          #fcf6ba,
+          #bf953f
+        );
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.4);
+      }
+
+      .donation-content-box {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid #444;
+        border-top: none;
+        padding: 20px;
+        text-align: center;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
       <h1>
-        Torrio
-        <span style="font-size: 0.5em; color: #4caf50; vertical-align: middle">v1.0</span>
+        Tor Fast
+        <span style="font-size: 0.5em; color: #4caf50; vertical-align: middle"
+          >v2.5.0</span
+        >
       </h1>
 
-      <button type="button" class="collapsible">Supported Providers (Click to View)</button>
+      <button type="button" class="collapsible">
+        Supported Providers (Click to View)
+      </button>
       <div class="content">
         <div class="instruction-block">
           <div class="instruction-title">🌐 Torrentio</div>
-          <div>Default source. Enter the full Torrentio configuration URL or leave simple specific URL.</div>
-          <div class="instruction-code">https://torrentio.strem.fun/qualityfilter=...</div>
+          <div>
+            Default source. Enter the full Torrentio configuration URL or leave
+            simple specific URL.
+          </div>
+          <div class="instruction-code">
+            https://torrentio.strem.fun/qualityfilter=...
+          </div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">🔍 Jackett / Prowlarr</div>
           <div>Use your Torznab Feed URL. It must include the API Key.</div>
-          <div class="instruction-code">http://host:9117/api/v2.0/indexers/all/results/torznab/api?apikey=YOUR_KEY</div>
-          <div class="instruction-code">http://host:9696/api/v1/search?apikey=YOUR_KEY</div>
+          <div class="instruction-code">
+            http://host:9117/api/v2.0/indexers/all/results/torznab/api?apikey=YOUR_KEY
+          </div>
+          <div class="instruction-code">
+            http://host:9696/api/v1/search?apikey=YOUR_KEY
+          </div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">🇷🇺 Jacred</div>
           <div>Russian torrent aggregator. Supports IMDB ID search.</div>
           <div class="instruction-code">https://jacred.xyz</div>
           <div class="instruction-code">https://jr.maxvol.pro</div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">📺 MediaFusion</div>
           <div>Paste your full MediaFusion configuration URL.</div>
-          <div class="instruction-code">https://mediafusion.elfhosted.com/...</div>
+          <div class="instruction-code">
+            https://mediafusion.elfhosted.com/...
+          </div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">☄️ Comet</div>
           <div>Paste your Comet instance URL (public or self-hosted).</div>
           <div class="instruction-code">https://comet.elfhosted.com</div>
-          <div class="instruction-code">https://comet.example.com/config_string</div>
+          <div class="instruction-code">
+            https://comet.example.com/config_string
+          </div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">📡 Peerflix</div>
           <div>Paste the Peerflix host URL.</div>
         </div>
+
         <div class="instruction-block">
           <div class="instruction-title">🚀 Zmb</div>
           <div>Paste the Zmb manifest URL.</div>
@@ -57,62 +494,137 @@
       <form id="configForm">
         <div class="form-group">
           <label for="jacktorrHost">TorrServer Host</label>
-          <input type="text" id="jacktorrHost" name="jacktorrHost" placeholder="http://127.0.0.1:8090" list="hostList" />
+          <input
+            type="text"
+            id="jacktorrHost"
+            name="jacktorrHost"
+            placeholder="http://127.0.0.1:8090"
+            list="hostList"
+          />
           <datalist id="hostList">
             <option value="http://127.0.0.1:8090"></option>
             <option value="http://user:pass@192.168.1.100:8090"></option>
           </datalist>
           <div class="help-text">
-            <a href="https://github.com/YouROK/TorrServer" target="_blank" style="color: #2196f3">Setup TorrServer →</a>
+            <a
+              href="https://github.com/YouROK/TorrServer"
+              target="_blank"
+              style="color: #2196f3"
+              >Setup TorrServer →</a
+            >
           </div>
         </div>
-
         <div class="form-group">
           <label>Upstream URLs</label>
           <div id="upstreamUrlContainer">
             <!-- Dynamic inputs will be added here -->
           </div>
-          <button type="button" id="addUrlBtn" class="add-btn">+ Add URL</button>
-          <div class="help-text">Full URL for upstream provider (e.g. customized Torrentio link).</div>
+          <button type="button" id="addUrlBtn" class="add-btn">
+            + Add URL
+          </button>
+          <div class="help-text">
+            Full URL for upstream provider (e.g. customized Torrentio link).
+          </div>
         </div>
-
         <div class="form-group">
           <label for="maxStreams">Max Streams Per Source</label>
-          <input type="number" id="maxStreams" name="maxStreams" placeholder="20" value="20" min="1" max="200" />
-          <div class="help-text">Maximum number of streams to show from each source (1-200).</div>
+          <input
+            type="number"
+            id="maxStreams"
+            name="maxStreams"
+            placeholder="20"
+            value="20"
+            min="1"
+            max="200"
+          />
+          <div class="help-text">
+            Maximum number of streams to show from each source (1-200).
+          </div>
         </div>
 
         <div class="form-group" style="margin-top: 15px; margin-bottom: 20px">
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer">
-            <input type="checkbox" id="torFastSync" name="torFastSync" style="width: 18px; height: 18px" />
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              cursor: pointer;
+            "
+          >
+            <input
+              type="checkbox"
+              id="torFastSync"
+              name="torFastSync"
+              style="width: 18px; height: 18px"
+            />
             <span>TorFast Server Sync</span>
           </label>
           <div class="help-text" style="color: #ff9800; margin-top: 5px">
-            ⚠️ Không tích vào đây jika bạn tidak dùng torrserver tự host theo link
-            <a href="https://github.com/9000000/TorrServer" target="_blank" style="color: #2196f3">Github</a>
-            atau dùng torrserver của tor fast
+            ⚠️ Không tích vào đây nếu bạn không dùng torrserver tự host theo
+            link
+            <a
+              href="https://github.com/9000000/TorrServer"
+              target="_blank"
+              style="color: #2196f3"
+              >Github</a
+            >
+            hoặc dùng torrserver của tor fast
           </div>
         </div>
 
         <!-- Mediaflow Proxy Section -->
-        <div class="form-group" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 15px">
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 10px">
-            <input type="checkbox" id="mediaflowEnabled" style="width: 18px; height: 18px" />
+        <div
+          class="form-group"
+          style="
+            margin-top: 15px;
+            border-top: 1px solid #444;
+            padding-top: 15px;
+          "
+        >
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 10px;">
+            <input type="checkbox" id="mediaflowEnabled" style="width: 18px; height: 18px;">
             <span>Enable Mediaflow Proxy</span>
           </label>
-          <div class="help-text" style="margin-bottom: 10px">Proxy streams through Mediaflow to hide your IP or improve connectivity.</div>
-          <div id="mediaflowFields" style="display: none">
+          <div class="help-text" style="margin-bottom: 10px">
+            Proxy streams through Mediaflow to hide your IP or improve
+            connectivity.
+          </div>
+          
+          <div id="mediaflowFields" style="display: none;">
             <div class="url-input-group" style="margin-bottom: 10px">
-              <label for="mediaflowProxyUrl" style="font-size: 0.9em; color: #aaa">Proxy URL</label>
-              <input type="text" id="mediaflowProxyUrl" name="mediaflowProxyUrl" placeholder="https://mediaflow.yourdomain.com" />
+              <label for="mediaflowProxyUrl" style="font-size: 0.9em; color: #aaa"
+                >Proxy URL</label
+              >
+              <input
+                type="text"
+                id="mediaflowProxyUrl"
+                name="mediaflowProxyUrl"
+                placeholder="https://mediaflow.yourdomain.com"
+              />
             </div>
             <div class="url-input-group" style="margin-bottom: 10px">
-              <label for="mediaflowApiPassword" style="font-size: 0.9em; color: #aaa">API Password</label>
-              <input type="password" id="mediaflowApiPassword" name="mediaflowApiPassword" placeholder="Your Mediaflow API Password" />
+              <label
+                for="mediaflowApiPassword"
+                style="font-size: 0.9em; color: #aaa"
+                >API Password</label
+              >
+              <input
+                type="password"
+                id="mediaflowApiPassword"
+                name="mediaflowApiPassword"
+                placeholder="Your Mediaflow API Password"
+              />
             </div>
             <div class="url-input-group">
-              <label for="mediaflowPublicIp" style="font-size: 0.9em; color: #aaa">Public IP (Optional)</label>
-              <input type="text" id="mediaflowPublicIp" name="mediaflowPublicIp" placeholder="Public IP of Mediaflow server" />
+              <label for="mediaflowPublicIp" style="font-size: 0.9em; color: #aaa"
+                >Public IP (Optional)</label
+              >
+              <input
+                type="text"
+                id="mediaflowPublicIp"
+                name="mediaflowPublicIp"
+                placeholder="Public IP of Mediaflow server"
+              />
             </div>
           </div>
         </div>
@@ -120,11 +632,18 @@
         <!-- Global Filters Section -->
         <div class="form-group">
           <label>Global Filters</label>
-          <div class="help-text" style="margin-bottom: 10px">Filter results by quality, resolution, HDR and 3D. Uncheck to hide that type.</div>
+          <div class="help-text" style="margin-bottom: 10px">
+            Filter results by quality, resolution, HDR and 3D. Uncheck to hide
+            that type.
+          </div>
 
           <div class="filter-section">
             <div class="filter-title">Resolution</div>
-            <div class="multi-select" id="resolutionSelect" data-name="filter_res">
+            <div
+              class="multi-select"
+              id="resolutionSelect"
+              data-name="filter_res"
+            >
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
                 <div class="multi-select-option" data-value="4k">4K/2160p</div>
@@ -141,14 +660,24 @@
 
           <div class="filter-section">
             <div class="filter-title">Quality</div>
-            <div class="multi-select" id="qualitySelect" data-name="filter_quality">
+            <div
+              class="multi-select"
+              id="qualitySelect"
+              data-name="filter_quality"
+            >
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="bluray">BluRay/BDRip/Remux</div>
-                <div class="multi-select-option" data-value="webdl">WEB-DL/WEBRip</div>
+                <div class="multi-select-option" data-value="bluray">
+                  BluRay/BDRip/Remux
+                </div>
+                <div class="multi-select-option" data-value="webdl">
+                  WEB-DL/WEBRip
+                </div>
                 <div class="multi-select-option" data-value="hdtv">HDTV</div>
                 <div class="multi-select-option" data-value="dvd">DVDRip</div>
-                <div class="multi-select-option" data-value="cam">CAM/TS/SCR</div>
+                <div class="multi-select-option" data-value="cam">
+                  CAM/TS/SCR
+                </div>
               </div>
             </div>
           </div>
@@ -158,51 +687,111 @@
             <div class="multi-select" id="hdrSelect" data-name="filter_hdr">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="dolbyvision">Dolby Vision</div>
-                <div class="multi-select-option" data-value="hdr10plus">HDR10+</div>
+                <div class="multi-select-option" data-value="dolbyvision">
+                  Dolby Vision
+                </div>
+                <div class="multi-select-option" data-value="hdr10plus">
+                  HDR10+
+                </div>
                 <div class="multi-select-option" data-value="hdr10">HDR10</div>
                 <div class="multi-select-option" data-value="hdr">HDR</div>
-                <div class="multi-select-option" data-value="sdr">SDR (Non-HDR)</div>
+                <div class="multi-select-option" data-value="sdr">
+                  SDR (Non-HDR)
+                </div>
               </div>
             </div>
           </div>
 
           <div class="filter-section">
             <div class="filter-title">Language</div>
-            <div class="multi-select" id="languageSelect" data-name="filter_language">
+            <div
+              class="multi-select"
+              id="languageSelect"
+              data-name="filter_language"
+            >
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="english">English</div>
-                <div class="multi-select-option" data-value="vietnamese">Vietnamese</div>
-                <div class="multi-select-option" data-value="chinese">Chinese</div>
-                <div class="multi-select-option" data-value="japanese">Japanese</div>
-                <div class="multi-select-option" data-value="korean">Korean</div>
-                <div class="multi-select-option" data-value="french">French</div>
-                <div class="multi-select-option" data-value="german">German</div>
-                <div class="multi-select-option" data-value="spanish">Spanish</div>
-                <div class="multi-select-option" data-value="italian">Italian</div>
-                <div class="multi-select-option" data-value="portuguese">Portuguese</div>
-                <div class="multi-select-option" data-value="russian">Russian</div>
+                <div class="multi-select-option" data-value="english">
+                  English
+                </div>
+                <div class="multi-select-option" data-value="vietnamese">
+                  Vietnamese
+                </div>
+                <div class="multi-select-option" data-value="chinese">
+                  Chinese
+                </div>
+                <div class="multi-select-option" data-value="japanese">
+                  Japanese
+                </div>
+                <div class="multi-select-option" data-value="korean">
+                  Korean
+                </div>
+                <div class="multi-select-option" data-value="french">
+                  French
+                </div>
+                <div class="multi-select-option" data-value="german">
+                  German
+                </div>
+                <div class="multi-select-option" data-value="spanish">
+                  Spanish
+                </div>
+                <div class="multi-select-option" data-value="italian">
+                  Italian
+                </div>
+                <div class="multi-select-option" data-value="portuguese">
+                  Portuguese
+                </div>
+                <div class="multi-select-option" data-value="russian">
+                  Russian
+                </div>
                 <div class="multi-select-option" data-value="hindi">Hindi</div>
                 <div class="multi-select-option" data-value="thai">Thai</div>
-                <div class="multi-select-option" data-value="indonesian">Indonesian</div>
-                <div class="multi-select-option" data-value="arabic">Arabic</div>
-                <div class="multi-select-option" data-value="turkish">Turkish</div>
-                <div class="multi-select-option" data-value="polish">Polish</div>
+                <div class="multi-select-option" data-value="indonesian">
+                  Indonesian
+                </div>
+                <div class="multi-select-option" data-value="arabic">
+                  Arabic
+                </div>
+                <div class="multi-select-option" data-value="turkish">
+                  Turkish
+                </div>
+                <div class="multi-select-option" data-value="polish">
+                  Polish
+                </div>
                 <div class="multi-select-option" data-value="dutch">Dutch</div>
-                <div class="multi-select-option" data-value="swedish">Swedish</div>
-                <div class="multi-select-option" data-value="danish">Danish</div>
-                <div class="multi-select-option" data-value="norwegian">Norwegian</div>
-                <div class="multi-select-option" data-value="finnish">Finnish</div>
+                <div class="multi-select-option" data-value="swedish">
+                  Swedish
+                </div>
+                <div class="multi-select-option" data-value="danish">
+                  Danish
+                </div>
+                <div class="multi-select-option" data-value="norwegian">
+                  Norwegian
+                </div>
+                <div class="multi-select-option" data-value="finnish">
+                  Finnish
+                </div>
                 <div class="multi-select-option" data-value="greek">Greek</div>
                 <div class="multi-select-option" data-value="czech">Czech</div>
-                <div class="multi-select-option" data-value="hungarian">Hungarian</div>
-                <div class="multi-select-option" data-value="romanian">Romanian</div>
-                <div class="multi-select-option" data-value="hebrew">Hebrew</div>
+                <div class="multi-select-option" data-value="hungarian">
+                  Hungarian
+                </div>
+                <div class="multi-select-option" data-value="romanian">
+                  Romanian
+                </div>
+                <div class="multi-select-option" data-value="hebrew">
+                  Hebrew
+                </div>
                 <div class="multi-select-option" data-value="malay">Malay</div>
-                <div class="multi-select-option" data-value="tagalog">Tagalog/Filipino</div>
-                <div class="multi-select-option" data-value="ukrainian">Ukrainian</div>
-                <div class="multi-select-option" data-value="multi">Multi/Dual Audio</div>
+                <div class="multi-select-option" data-value="tagalog">
+                  Tagalog/Filipino
+                </div>
+                <div class="multi-select-option" data-value="ukrainian">
+                  Ukrainian
+                </div>
+                <div class="multi-select-option" data-value="multi">
+                  Multi/Dual Audio
+                </div>
               </div>
             </div>
           </div>
@@ -210,8 +799,26 @@
           <div class="filter-section">
             <div class="filter-title">3D</div>
             <div class="filter-options">
-              <label class="checkbox-label"><input type="checkbox" name="filter_3d" value="3d" id="filter3dOnly" disabled /> Show 3D Only</label>
-              <label class="checkbox-label"><input type="checkbox" name="filter_3d" value="no3d" id="filterHide3d" checked /> Hide 3D</label>
+              <label class="checkbox-label"
+                ><input
+                  type="checkbox"
+                  name="filter_3d"
+                  value="3d"
+                  id="filter3dOnly"
+                  disabled
+                />
+                Show 3D Only</label
+              >
+              <label class="checkbox-label"
+                ><input
+                  type="checkbox"
+                  name="filter_3d"
+                  value="no3d"
+                  id="filterHide3d"
+                  checked
+                />
+                Hide 3D</label
+              >
             </div>
           </div>
 
@@ -220,43 +827,869 @@
             <div class="multi-select" id="sortBySelect" data-name="sort_by">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="seeders">Seeders (high → low)</div>
-                <div class="multi-select-option" data-value="size">Size (large → small)</div>
-                <div class="multi-select-option" data-value="quality">Quality (best → worst)</div>
-                <div class="multi-select-option" data-value="resolution">Resolution (high → low)</div>
+                <div class="multi-select-option" data-value="seeders">
+                  Seeders (high → low)
+                </div>
+                <div class="multi-select-option" data-value="size">
+                  Size (large → small)
+                </div>
+                <div class="multi-select-option" data-value="quality">
+                  Quality (best → worst)
+                </div>
+                <div class="multi-select-option" data-value="resolution">
+                  Resolution (high → low)
+                </div>
               </div>
             </div>
           </div>
         </div>
-
         <button type="submit" id="generateBtn">Generate Link</button>
       </form>
 
-      <div id="resultArea" style="display: none; margin-top: 20px; border-top: 1px solid #444; padding-top: 20px">
+      <div
+        id="resultArea"
+        style="
+          display: none;
+          margin-top: 20px;
+          border-top: 1px solid #444;
+          padding-top: 20px;
+        "
+      >
         <div class="form-group">
           <label for="generatedLink">Addon Link</label>
-          <input type="text" id="generatedLink" readonly style="background-color: #222; color: #aaa" />
+          <input
+            type="text"
+            id="generatedLink"
+            readonly
+            style="background-color: #222; color: #aaa"
+          />
         </div>
         <div style="display: flex; gap: 10px">
-          <button id="copyBtn" style="background-color: #2196f3">Copy Link</button>
-          <a id="installBtn" style="background-color: #4caf50; padding: 10px; color: white; text-decoration: none; border-radius: 4px; text-align: center; display: inline-block; flex: 1; font-weight: bold; cursor: pointer">Install on Stremio</a>
+          <button id="copyBtn" style="background-color: #2196f3">
+            Copy Link
+          </button>
+          <a
+            id="installBtn"
+            style="
+              background-color: #4caf50;
+              padding: 10px;
+              color: white;
+              text-decoration: none;
+              border-radius: 4px;
+              text-align: center;
+              display: inline-block;
+              flex: 1;
+              font-weight: bold;
+              cursor: pointer;
+            "
+            >Install on Stremio</a
+          >
         </div>
       </div>
 
-      <div style="margin-top: 30px; border-top: 1px dashed #444; padding-top: 10px">
-        <button type="button" class="collapsible donation-btn-gold">☕ Support Me - Buy Me a Tea!</button>
+      <div
+        style="margin-top: 30px; border-top: 1px dashed #444; padding-top: 10px"
+      >
+        <button type="button" class="collapsible donation-btn-gold">
+          ☕ Support Me - Buy Me a Tea!
+        </button>
         <div class="content donation-content-box">
           <div class="donation-text">☕ Buy Me a Tea ☕</div>
-          <img src="https://storage3.me-qr.com/qr/328963290.png?v=1775314777" alt="Donation QR Code" class="donation-qr" />
+          <img
+            src="/static/donation-qr.jpg"
+            alt="Donation QR Code"
+            class="donation-qr"
+          />
           <div style="margin-top: 15px">
-            <a href="https://ko-fi.com/brynts" target="_blank" style="color: #ffd700; text-decoration: none; font-weight: bold; border: 1px solid #ffd700; padding: 8px 15px; border-radius: 5px">☕ Buy Me a Tea</a>
+            <a
+              href="https://buymeacoffee.com/matrix1988"
+              target="_blank"
+              style="
+                color: #ffd700;
+                text-decoration: none;
+                font-weight: bold;
+                border: 1px solid #ffd700;
+                padding: 8px 15px;
+                border-radius: 5px;
+              "
+            >
+              ☕ Buy Me a Tea
+            </a>
           </div>
         </div>
       </div>
 
-      <div id="statusMessage" style="color: yellow; text-align: center; margin-top: 10px; font-weight: bold; min-height: 20px"></div>
+      <div
+        id="statusMessage"
+        style="
+          color: yellow;
+          text-align: center;
+          margin-top: 10px;
+          font-weight: bold;
+          min-height: 20px;
+        "
+      ></div>
     </div>
 
-    <script src="assets/js/script.js"></script>
+    <script>
+      function safeBtoa(str) {
+        try {
+          return btoa(
+            encodeURIComponent(str).replace(
+              /%([0-9A-F]{2})/g,
+              function (match, p1) {
+                return String.fromCharCode("0x" + p1);
+              }
+            )
+          );
+        } catch (e) {
+          console.error("Base64 encoding failed:", e);
+          throw e;
+        }
+      }
+
+      // Collapsible Logic
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function () {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+          } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+          }
+        });
+      }
+
+      // Dynamic URL Input Logic
+      const container = document.getElementById("upstreamUrlContainer");
+      const addBtn = document.getElementById("addUrlBtn");
+
+      function cleanUrl(url) {
+        let cleaned = url.trim();
+        if (!cleaned) return "";
+
+        // Fix protocol
+        if (cleaned.startsWith("stremio://"))
+          cleaned = cleaned.replace("stremio://", "https://");
+        else if (cleaned.startsWith("stremios://"))
+          cleaned = cleaned.replace("stremios://", "https://");
+        else if (!cleaned.startsWith("http")) cleaned = "https://" + cleaned;
+
+        // Remove manifest.json and trailing slashes
+        // Matches /manifest.json with optional trailing slash
+        cleaned = cleaned.replace(/\/manifest\.json\/?$/, "");
+
+        // Remove trailing slash if it exists after removing manifest
+        if (cleaned.endsWith("/")) cleaned = cleaned.slice(0, -1);
+
+        return cleaned;
+      }
+
+      function addUrlInput(value = "", applyFilter = true, directLink = false) {
+        const div = document.createElement("div");
+        div.className = "url-input-group";
+
+        // Row 1: URL input + remove button
+        const inputRow = document.createElement("div");
+        inputRow.className = "url-input-row";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "url-input-field";
+        input.placeholder = "https://torrentio.strem.fun/...";
+        input.value = value;
+
+        // Auto-clean on blur
+        input.addEventListener("blur", function () {
+          const cleaned = cleanUrl(this.value);
+          if (cleaned && cleaned !== this.value) {
+            this.value = cleaned;
+          }
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "remove-btn";
+        removeBtn.innerHTML = "&times;"; // Multiplication sign as X
+        removeBtn.onclick = function () {
+          container.removeChild(div);
+        };
+
+        inputRow.appendChild(input);
+        inputRow.appendChild(removeBtn);
+
+        // Row 2: Filter checkbox + Direct link checkbox
+        const filterRow = document.createElement("div");
+        filterRow.className = "url-filter-row";
+
+        // Filter checkbox
+        const filterLabel = document.createElement("label");
+        const filterCheckbox = document.createElement("input");
+        filterCheckbox.type = "checkbox";
+        filterCheckbox.className = "url-filter-checkbox";
+        filterCheckbox.checked = applyFilter;
+
+        filterLabel.appendChild(filterCheckbox);
+        filterLabel.appendChild(
+          document.createTextNode(" Apply global filters")
+        );
+        filterRow.appendChild(filterLabel);
+
+        // Direct link checkbox
+        const directLabel = document.createElement("label");
+        directLabel.className = "direct-link-label";
+        const directCheckbox = document.createElement("input");
+        directCheckbox.type = "checkbox";
+        directCheckbox.className = "url-direct-checkbox";
+        directCheckbox.checked = directLink;
+
+        directLabel.appendChild(directCheckbox);
+        directLabel.appendChild(document.createTextNode(" Use direct link"));
+        filterRow.appendChild(directLabel);
+
+        div.appendChild(inputRow);
+        div.appendChild(filterRow);
+        container.appendChild(div);
+      }
+
+      addBtn.addEventListener("click", () => addUrlInput());
+
+      // Parse existing config from URL if present
+      function safeAtob(str) {
+        try {
+          // Handle URL safe base64
+          let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+          // Add padding if needed
+          while (base64.length % 4) {
+            base64 += "=";
+          }
+          const decoded = atob(base64);
+          // Decode URI components for Unicode support
+          return decodeURIComponent(
+            decoded
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+        } catch (e) {
+          console.error("Base64 decoding failed:", e);
+          return null;
+        }
+      }
+
+      function loadConfigFromUrl() {
+        try {
+          const pathParts = window.location.pathname
+            .split("/")
+            .filter((p) => p);
+          console.log("Path parts:", pathParts);
+
+          // Find config string - it's the part that's NOT 'configure' and looks like base64
+          let configStr = null;
+          for (const part of pathParts) {
+            // Skip 'configure' and other known routes
+            if (part === "configure" || part === "manifest.json") continue;
+            // Config string should be base64-like (alphanumeric, -, _)
+            if (/^[A-Za-z0-9_-]+$/.test(part) && part.length > 10) {
+              configStr = part;
+              break;
+            }
+          }
+
+          if (configStr) {
+            console.log("Found config string:", configStr);
+            const decoded = safeAtob(configStr);
+            if (decoded) {
+              const config = JSON.parse(decoded);
+              console.log("Loaded config:", config);
+
+              let configLoaded = false;
+
+              // Pre-fill form fields
+              if (config.jacktorr_host) {
+                // Handle legacy config with separate port
+                let hostValue = config.jacktorr_host;
+                if (config.jacktorr_port && config.jacktorr_port !== 0) {
+                  // Check if host already contains port
+                  try {
+                    const url = new URL(hostValue);
+                    if (!url.port) {
+                      url.port = config.jacktorr_port;
+                      hostValue = url.toString().replace(/\/$/, "");
+                    }
+                  } catch (e) {
+                    // If not a valid URL, just append port
+                    hostValue = `${hostValue}:${config.jacktorr_port}`;
+                  }
+                }
+                document.getElementById("jacktorrHost").value = hostValue;
+                configLoaded = true;
+              }
+              /* 
+              if (config.jacktorr_password) {
+                 // Element does not exist in UI, password is part of host URL or managed internally
+                 // document.getElementById("jacktorrPassword").value = config.jacktorr_password;
+              }
+              */
+              if (config.max_streams !== undefined) {
+                document.getElementById("maxStreams").value =
+                  config.max_streams;
+                configLoaded = true;
+              }
+              if (config.tor_fast_sync) {
+                document.getElementById("torFastSync").checked = true;
+                configLoaded = true;
+              }
+
+              // Mediaflow Proxy
+              if (config.mediaflow_proxy_url) {
+                const el = document.getElementById("mediaflowProxyUrl");
+                if (el) el.value = config.mediaflow_proxy_url;
+                
+                // Enable checkbox and show fields
+                const cb = document.getElementById("mediaflowEnabled");
+                if (cb) {
+                    cb.checked = true;
+                    // Trigger change event to update UI visibility
+                    cb.dispatchEvent(new Event('change'));
+                }
+                configLoaded = true;
+              }
+              if (config.mediaflow_api_password) {
+                const el = document.getElementById("mediaflowApiPassword");
+                if (el) el.value = config.mediaflow_api_password;
+              }
+              if (config.mediaflow_public_ip) {
+                const el = document.getElementById("mediaflowPublicIp");
+                if (el) el.value = config.mediaflow_public_ip;
+              }
+
+              // Pre-fill upstream URLs
+              if (config.upstream_url) {
+                const urls = config.upstream_url
+                  .split("\n")
+                  .filter((u) => u.trim());
+                const filterFlags = config.upstream_filters || [];
+                const directFlags = config.upstream_direct || [];
+                if (urls.length > 0) {
+                  // Clear any existing URLs first
+                  container.innerHTML = "";
+                  // Add saved URLs
+                  urls.forEach((url, idx) => {
+                    const applyFilter =
+                      filterFlags.length > idx ? filterFlags[idx] : true;
+                    const directLink =
+                      directFlags.length > idx ? directFlags[idx] : false;
+                    addUrlInput(url, applyFilter, directLink);
+                  });
+                  configLoaded = true;
+                }
+              }
+
+              // Load filters if present
+              if (config.filters) {
+                loadFilters(config.filters);
+                configLoaded = true;
+              }
+
+              return configLoaded; // Return true if any config was loaded
+            }
+          }
+        } catch (e) {
+          console.error("Error loading config from URL:", e);
+        }
+        return false; // No config loaded
+      }
+
+      // Try to load config from URL - will be called after multiSelects is initialized
+      // if (!loadConfigFromUrl()) {
+      //   addUrlInput("https://torrentio.strem.fun/qualityfilter=dolbyvision,dolbyvisionwithhdr,threed,720p,480p,other,scr,cam,unknown");
+      // }
+
+      // Helper function to get checked checkbox values
+      function getCheckedValues(name) {
+        const checkboxes = document.querySelectorAll(
+          `input[name="${name}"]:checked`
+        );
+        return Array.from(checkboxes).map((cb) => cb.value);
+      }
+
+      // Helper function to set checkbox values
+      function setCheckedValues(name, values) {
+        if (!values || !Array.isArray(values)) return;
+        const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
+        checkboxes.forEach((cb) => {
+          cb.checked = values.includes(cb.value);
+        });
+      }
+
+      // Multi-select component
+      class MultiSelect {
+        constructor(
+          element,
+          singleSelect = false,
+          placeholder = "Select to filter...",
+          maxSelection = null
+        ) {
+          this.element = element;
+          this.name = element.dataset.name;
+          this.tagsContainer = element.querySelector(".multi-select-tags");
+          this.dropdown = element.querySelector(".multi-select-dropdown");
+          this.options = element.querySelectorAll(".multi-select-option");
+          this.selectedValues = [];
+          this.singleSelect = singleSelect;
+          this.placeholder = placeholder;
+          this.maxSelection = maxSelection;
+
+          this.init();
+        }
+
+        init() {
+          // Toggle dropdown on click
+          this.tagsContainer.addEventListener("click", (e) => {
+            if (e.target.classList.contains("multi-select-tag-remove")) return;
+            this.toggle();
+          });
+
+          // Option click
+          this.options.forEach((option) => {
+            option.addEventListener("click", () => {
+              this.toggleOption(option.dataset.value);
+            });
+          });
+
+          // Close on outside click
+          document.addEventListener("click", (e) => {
+            if (!this.element.contains(e.target)) {
+              this.close();
+            }
+          });
+
+          this.render();
+        }
+
+        toggle() {
+          this.element.classList.toggle("open");
+        }
+
+        close() {
+          this.element.classList.remove("open");
+        }
+
+        toggleOption(value) {
+          if (this.singleSelect) {
+            // Single select mode - replace value and close dropdown
+            this.selectedValues = [value];
+            this.render();
+            this.close();
+          } else {
+            // Multi select mode
+            const idx = this.selectedValues.indexOf(value);
+            if (idx > -1) {
+              this.selectedValues.splice(idx, 1);
+            } else {
+              // Check max selection limit
+              if (
+                this.maxSelection !== null &&
+                this.selectedValues.length >= this.maxSelection
+              ) {
+                // Auto-remove the first item (FIFO) to allow new selection
+                this.selectedValues.shift();
+              }
+              this.selectedValues.push(value);
+            }
+            this.render();
+          }
+        }
+
+        removeValue(value) {
+          if (this.singleSelect) return; // Don't allow removal in single select
+          const idx = this.selectedValues.indexOf(value);
+          if (idx > -1) {
+            this.selectedValues.splice(idx, 1);
+            this.render();
+          }
+        }
+
+        setValues(values) {
+          if (this.singleSelect && Array.isArray(values)) {
+            this.selectedValues = values.length > 0 ? [values[0]] : [];
+          } else {
+            this.selectedValues = values || [];
+            // Enforce max limit on load if needed
+            if (
+              this.maxSelection !== null &&
+              this.selectedValues.length > this.maxSelection
+            ) {
+              this.selectedValues = this.selectedValues.slice(
+                0,
+                this.maxSelection
+              );
+            }
+          }
+          this.render();
+        }
+
+        setValue(value) {
+          // Handle single value setting (convert to array)
+          this.setValues([value]);
+        }
+
+        getValues() {
+          return this.selectedValues;
+        }
+
+        getValue() {
+          // For backward compatibility / single value
+          return this.selectedValues.length > 0 ? this.selectedValues[0] : null;
+        }
+
+        render() {
+          // Update tags
+          this.tagsContainer.innerHTML = "";
+
+          if (this.selectedValues.length === 0) {
+            const placeholder = document.createElement("span");
+            placeholder.className = "multi-select-placeholder";
+            placeholder.textContent = this.placeholder || "Select to filter...";
+            this.tagsContainer.appendChild(placeholder);
+          } else {
+            this.selectedValues.forEach((value, index) => {
+              const option = this.element.querySelector(
+                `[data-value="${value}"]`
+              );
+              if (option) {
+                const tag = document.createElement("span");
+                tag.className = "multi-select-tag";
+
+                let content = option.textContent;
+                // If maxSelection is active (like sorting), show number
+                if (this.maxSelection !== null && !this.singleSelect) {
+                  content = `${index + 1}. ${content}`;
+                }
+
+                if (this.singleSelect) {
+                  // Single select - no remove button
+                  tag.textContent = content;
+                } else {
+                  // Multi select - with remove button
+                  tag.innerHTML = `${content} <span class="multi-select-tag-remove" data-value="${value}">×</span>`;
+                  tag
+                    .querySelector(".multi-select-tag-remove")
+                    .addEventListener("click", (e) => {
+                      e.stopPropagation();
+                      this.removeValue(value);
+                    });
+                }
+                this.tagsContainer.appendChild(tag);
+              }
+            });
+          }
+
+          // Update options
+          this.options.forEach((option) => {
+            const val = option.dataset.value;
+            const idx = this.selectedValues.indexOf(val);
+            if (idx > -1) {
+              option.classList.add("selected");
+              // Also show number in dropdown if sorting
+              if (this.maxSelection !== null && !this.singleSelect) {
+                option.setAttribute("data-order", idx + 1);
+              }
+            } else {
+              option.classList.remove("selected");
+              option.removeAttribute("data-order");
+            }
+          });
+        }
+      }
+
+      // Initialize multi-selects
+      const multiSelects = {};
+      document.querySelectorAll(".multi-select").forEach((el) => {
+        let isSingleSelect = false;
+        let maxSelection = null;
+        let placeholder = "Select to filter...";
+
+        if (el.id === "sortBySelect") {
+          isSingleSelect = false; // Changed to multi
+          maxSelection = 2; // Max 2
+          placeholder = "Select sort order (max 2)...";
+        }
+
+        if (el.id === "languageSelect") {
+          placeholder = "All languages (select to filter)";
+        }
+        multiSelects[el.id] = new MultiSelect(
+          el,
+          isSingleSelect,
+          placeholder,
+          maxSelection
+        );
+      });
+
+      // Set default values
+      multiSelects.resolutionSelect.setValues(["4k", "1080p"]);
+      multiSelects.qualitySelect.setValues(["bluray", "webdl"]);
+      multiSelects.hdrSelect.setValues(["hdr10plus", "hdr10", "hdr", "sdr"]);
+      multiSelects.languageSelect.setValues([]); // Default: All (empty = no filter)
+      multiSelects.sortBySelect.setValues(["resolution", "seeders"]);
+
+      // 3D filter logic - "Chỉ hiện 3D" only enabled when "Ẩn 3D" is unchecked
+      const filter3dOnly = document.getElementById("filter3dOnly");
+      const filterHide3d = document.getElementById("filterHide3d");
+
+      filterHide3d.addEventListener("change", function () {
+        if (this.checked) {
+          filter3dOnly.checked = false;
+          filter3dOnly.disabled = true;
+          filter3dOnly.parentElement.style.opacity = "0.5";
+        } else {
+          filter3dOnly.disabled = false;
+          filter3dOnly.parentElement.style.opacity = "1";
+        }
+      });
+
+      filter3dOnly.addEventListener("change", function () {
+        if (this.checked) {
+          filterHide3d.checked = false;
+        }
+      });
+
+      // Load filters from config
+
+      // Mediaflow Toggle Logic
+      const mediaflowEnabledCbox = document.getElementById("mediaflowEnabled");
+      const mediaflowFieldsDiv = document.getElementById("mediaflowFields");
+
+      mediaflowEnabledCbox.addEventListener("change", function() {
+        mediaflowFieldsDiv.style.display = this.checked ? "block" : "none";
+      });
+
+      function loadFilters(filters) {
+        if (!filters) return;
+        if (filters.resolution && multiSelects.resolutionSelect) {
+          multiSelects.resolutionSelect.setValues(filters.resolution);
+        }
+        if (filters.quality && multiSelects.qualitySelect) {
+          multiSelects.qualitySelect.setValues(filters.quality);
+        }
+        if (filters.hdr && multiSelects.hdrSelect) {
+          multiSelects.hdrSelect.setValues(filters.hdr);
+        }
+        if (filters.language && multiSelects.languageSelect) {
+          multiSelects.languageSelect.setValues(filters.language);
+        }
+        if (filters.hide3d !== undefined) {
+          filterHide3d.checked = filters.hide3d;
+          // Update 3D only checkbox state based on hide3d
+          if (filters.hide3d) {
+            filter3dOnly.checked = false;
+            filter3dOnly.disabled = true;
+            filter3dOnly.parentElement.style.opacity = "0.5";
+          } else {
+            filter3dOnly.disabled = false;
+            filter3dOnly.parentElement.style.opacity = "1";
+            if (filters.show3d !== undefined) {
+              filter3dOnly.checked = filters.show3d;
+            }
+          }
+        } else if (filters.show3d !== undefined) {
+          filter3dOnly.checked = filters.show3d;
+        }
+        // Load sort_by
+        if (filters.sort_by && multiSelects.sortBySelect) {
+          if (Array.isArray(filters.sort_by)) {
+            multiSelects.sortBySelect.setValues(filters.sort_by);
+          } else {
+            multiSelects.sortBySelect.setValue(filters.sort_by);
+          }
+        }
+      }
+
+      // NOW load config from URL after everything is initialized
+      if (!loadConfigFromUrl()) {
+        addUrlInput(
+          "https://torrentio.strem.fun/qualityfilter=dolbyvision,dolbyvisionwithhdr,threed,720p,480p,other,scr,cam,unknown"
+        );
+      }
+
+      document
+        .getElementById("configForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const statusDiv = document.getElementById("statusMessage");
+          statusDiv.innerText = "";
+
+          try {
+            // Validate TorrServer Host
+            const jacktorrHost = document
+              .getElementById("jacktorrHost")
+              .value.trim();
+            if (!jacktorrHost) {
+              statusDiv.innerText =
+                "⚠️ Please enter TorrServer Host to continue!";
+              statusDiv.style.color = "#f44336";
+              document.getElementById("jacktorrHost").focus();
+              document.getElementById("jacktorrHost").style.borderColor =
+                "#f44336";
+              return;
+            }
+
+            // Reset border color if valid
+            document.getElementById("jacktorrHost").style.borderColor = "#444";
+            statusDiv.style.color = "yellow";
+
+            // Collect all URL inputs and their filter/direct states
+            const urlGroups = document.querySelectorAll(".url-input-group");
+            let urls = [];
+            let filterFlags = [];
+            let directFlags = [];
+
+            urlGroups.forEach((group) => {
+              const input = group.querySelector(".url-input-field");
+              const filterCheckbox = group.querySelector(".url-filter-checkbox");
+              const directCheckbox = group.querySelector(".url-direct-checkbox");
+              
+              if (input) {
+                  const val = cleanUrl(input.value);
+                  if (val) {
+                    urls.push(val);
+                    filterFlags.push(
+                      filterCheckbox ? filterCheckbox.checked : true
+                    );
+                    directFlags.push(
+                      directCheckbox ? directCheckbox.checked : false
+                    );
+                  }
+              }
+            });
+
+            if (urls.length === 0) {
+              // If no valid URLs, maybe warn or allow empty? Let's treat as empty list.
+            }
+
+            const upstreamUrlsString = urls.join("\n");
+
+            // Parse credentials from jacktorrHost input
+            let finalHost = jacktorrHost;
+            let finalPassword = "";
+            try {
+               // Ensure protocol is present for URL parsing
+               const strForUrl = jacktorrHost.includes("://") ? jacktorrHost : "http://" + jacktorrHost;
+               const url = new URL(strForUrl);
+
+               if (url.username || url.password) {
+                   finalPassword = url.password; // Extract password
+                   finalHost = url.origin; // Use clean origin as host
+               }
+            } catch (e) {
+               // If parsing fails, use original values
+            }
+
+            const formData = {
+              jacktorr_host: finalHost,
+              jacktorr_password: finalPassword,
+              upstream_url: upstreamUrlsString,
+              upstream_filters: filterFlags,
+              upstream_direct: directFlags,
+              tor_fast_sync: document.getElementById("torFastSync").checked,
+              max_streams:
+                parseInt(document.getElementById("maxStreams").value.trim()) ||
+                20,
+              mediaflow_proxy_url: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowProxyUrl") ? document.getElementById("mediaflowProxyUrl").value.trim() : "",
+              mediaflow_api_password: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowApiPassword") ? document.getElementById("mediaflowApiPassword").value.trim() : "",
+              mediaflow_public_ip: mediaflowEnabledCbox?.checked && document.getElementById("mediaflowPublicIp") ? document.getElementById("mediaflowPublicIp").value.trim() : "",
+              // Global filters
+              filters: {
+                resolution: multiSelects.resolutionSelect.getValues(),
+                quality: multiSelects.qualitySelect.getValues(),
+                hdr: multiSelects.hdrSelect.getValues(),
+                language: multiSelects.languageSelect.getValues(),
+                show3d: filter3dOnly.checked,
+                hide3d: filterHide3d.checked,
+                sort_by: multiSelects.sortBySelect.getValues(),
+              },
+            };
+
+            const jsonStr = JSON.stringify(formData);
+            const base64Str = safeBtoa(jsonStr)
+              .replace(/\+/g, "-")
+              .replace(/\//g, "_")
+              .replace(/=+$/, ""); // URL safe base64
+
+            const currentHost = window.location.host;
+            // Force HTTPS as requested
+            const protocol = "https:";
+
+            const installUrl = `${protocol}//${currentHost}/${base64Str}/manifest.json`;
+
+            // Show result
+            document.getElementById("generatedLink").value = installUrl;
+            document.getElementById("resultArea").style.display = "block";
+
+            // Update install button to use stremio protocol for direct opening
+            const stremioUrl = installUrl.replace(/^https?:\/\//, "stremio://");
+            const installBtn = document.getElementById("installBtn");
+            installBtn.href = stremioUrl;
+
+            // Add click listener to ensure it opens
+            installBtn.onclick = function (e) {
+              console.log("Opening Stremio URL:", stremioUrl);
+            };
+          } catch (err) {
+            statusDiv.innerText = "Error: " + err.message;
+            console.error(err);
+          }
+        });
+
+      document.getElementById("copyBtn").addEventListener("click", function () {
+        const copyText = document.getElementById("generatedLink");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); // For mobile devices
+
+        // Internal helper to show status
+        function showStatus(msg) {
+          const status = document.getElementById("statusMessage");
+          status.innerText = msg;
+          setTimeout(() => {
+            status.innerText = "";
+          }, 3000);
+        }
+
+        // Try modern API first (needs secure context)
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard
+            .writeText(copyText.value)
+            .then(() => {
+              showStatus("Link copied to clipboard!");
+            })
+            .catch((err) => {
+              fallbackCopy();
+            });
+        } else {
+          fallbackCopy();
+        }
+
+        function fallbackCopy() {
+          try {
+            const successful = document.execCommand("copy");
+            if (successful) {
+              showStatus("Link copied to clipboard!");
+            } else {
+              showStatus("Failed to copy link.");
+            }
+          } catch (err) {
+            showStatus("Failed to copy link: " + err);
+          }
+        }
+      });
+    </script>
   </body>
 </html>
