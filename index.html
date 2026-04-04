@@ -1,75 +1,52 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Torrio Config</title>
-    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
   </head>
   <body>
     <div class="container">
       <h1>
         Torrio
-        <span style="font-size: 0.5em; color: #4caf50; vertical-align: middle"
-          >v1.0</span
-        >
+        <span style="font-size: 0.5em; color: #4caf50; vertical-align: middle">v1.0</span>
       </h1>
 
-      <button type="button" class="collapsible">
-        Supported Providers (Click to View)
-      </button>
+      <button type="button" class="collapsible">Supported Providers (Click to View)</button>
       <div class="content">
         <div class="instruction-block">
           <div class="instruction-title">🌐 Torrentio</div>
-          <div>
-            Default source. Enter the full Torrentio configuration URL or leave
-            simple specific URL.
-          </div>
-          <div class="instruction-code">
-            https://torrentio.strem.fun/qualityfilter=...
-          </div>
+          <div>Default source. Enter the full Torrentio configuration URL or leave simple specific URL.</div>
+          <div class="instruction-code">https://torrentio.strem.fun/qualityfilter=...</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">🔍 Jackett / Prowlarr</div>
           <div>Use your Torznab Feed URL. It must include the API Key.</div>
-          <div class="instruction-code">
-            http://host:9117/api/v2.0/indexers/all/results/torznab/api?apikey=YOUR_KEY
-          </div>
-          <div class="instruction-code">
-            http://host:9696/api/v1/search?apikey=YOUR_KEY
-          </div>
+          <div class="instruction-code">http://host:9117/api/v2.0/indexers/all/results/torznab/api?apikey=YOUR_KEY</div>
+          <div class="instruction-code">http://host:9696/api/v1/search?apikey=YOUR_KEY</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">🇷🇺 Jacred</div>
           <div>Russian torrent aggregator. Supports IMDB ID search.</div>
           <div class="instruction-code">https://jacred.xyz</div>
           <div class="instruction-code">https://jr.maxvol.pro</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">📺 MediaFusion</div>
           <div>Paste your full MediaFusion configuration URL.</div>
-          <div class="instruction-code">
-            https://mediafusion.elfhosted.com/...
-          </div>
+          <div class="instruction-code">https://mediafusion.elfhosted.com/...</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">☄️ Comet</div>
           <div>Paste your Comet instance URL (public or self-hosted).</div>
           <div class="instruction-code">https://comet.elfhosted.com</div>
-          <div class="instruction-code">
-            https://comet.example.com/config_string
-          </div>
+          <div class="instruction-code">https://comet.example.com/config_string</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">📡 Peerflix</div>
           <div>Paste the Peerflix host URL.</div>
         </div>
-
         <div class="instruction-block">
           <div class="instruction-title">🚀 Zmb</div>
           <div>Paste the Zmb manifest URL.</div>
@@ -80,156 +57,62 @@
       <form id="configForm">
         <div class="form-group">
           <label for="jacktorrHost">TorrServer Host</label>
-          <input
-            type="text"
-            id="jacktorrHost"
-            name="jacktorrHost"
-            placeholder="http://127.0.0.1:8090"
-          />
+          <input type="text" id="jacktorrHost" name="jacktorrHost" placeholder="http://127.0.0.1:8090" list="hostList" />
+          <datalist id="hostList">
+            <option value="http://127.0.0.1:8090"></option>
+            <option value="http://user:pass@192.168.1.100:8090"></option>
+          </datalist>
           <div class="help-text">
-            <a
-              href="https://github.com/YouROK/TorrServer"
-              target="_blank"
-              style="color: #2196f3"
-              >Setup TorrServer →</a
-            >
+            <a href="https://github.com/YouROK/TorrServer" target="_blank" style="color: #2196f3">Setup TorrServer →</a>
           </div>
         </div>
 
-        <!-- Username & Password for HTTP Auth TorrServer -->
-        <div class="form-group">
-          <label for="jacktorrUsername">TorrServer Username <span style="font-weight:normal; color:#aaa">(optional)</span></label>
-          <input
-            type="text"
-            id="jacktorrUsername"
-            name="jacktorrUsername"
-            placeholder="username (kosong jika tidak pakai auth)"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="jacktorrPassword">TorrServer Password <span style="font-weight:normal; color:#aaa">(optional)</span></label>
-          <input
-            type="password"
-            id="jacktorrPassword"
-            name="jacktorrPassword"
-            placeholder="password (kosong jika tidak pakai auth)"
-          />
-          <div class="help-text">
-            Diisi jika TorrServer pakai <code>--httpauth</code> atau <code>TS_HTTPAUTH=1</code> (accs.db)
-          </div>
-        </div>
         <div class="form-group">
           <label>Upstream URLs</label>
           <div id="upstreamUrlContainer">
             <!-- Dynamic inputs will be added here -->
           </div>
-          <button type="button" id="addUrlBtn" class="add-btn">
-            + Add URL
-          </button>
-          <div class="help-text">
-            Full URL for upstream provider (e.g. customized Torrentio link).
-          </div>
+          <button type="button" id="addUrlBtn" class="add-btn">+ Add URL</button>
+          <div class="help-text">Full URL for upstream provider (e.g. customized Torrentio link).</div>
         </div>
+
         <div class="form-group">
           <label for="maxStreams">Max Streams Per Source</label>
-          <input
-            type="number"
-            id="maxStreams"
-            name="maxStreams"
-            placeholder="20"
-            value="20"
-            min="1"
-            max="200"
-          />
-          <div class="help-text">
-            Maximum number of streams to show from each source (1-200).
-          </div>
+          <input type="number" id="maxStreams" name="maxStreams" placeholder="20" value="20" min="1" max="200" />
+          <div class="help-text">Maximum number of streams to show from each source (1-200).</div>
         </div>
 
         <div class="form-group" style="margin-top: 15px; margin-bottom: 20px">
-          <label
-            style="
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              cursor: pointer;
-            "
-          >
-            <input
-              type="checkbox"
-              id="torFastSync"
-              name="torFastSync"
-              style="width: 18px; height: 18px"
-            />
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer">
+            <input type="checkbox" id="torFastSync" name="torFastSync" style="width: 18px; height: 18px" />
             <span>TorFast Server Sync</span>
           </label>
           <div class="help-text" style="color: #ff9800; margin-top: 5px">
-            ⚠️ Do not check this box if you are not using a self-hosted torrent server via
-            the link
-            <a
-              href="https://github.com/9000000/TorrServer"
-              target="_blank"
-              style="color: #2196f3"
-              >Github</a
-            >
-            or use the Tor Fast torrent server
+            ⚠️ Không tích vào đây jika bạn tidak dùng torrserver tự host theo link
+            <a href="https://github.com/9000000/TorrServer" target="_blank" style="color: #2196f3">Github</a>
+            atau dùng torrserver của tor fast
           </div>
         </div>
 
         <!-- Mediaflow Proxy Section -->
-        <div
-          class="form-group"
-          style="
-            margin-top: 15px;
-            border-top: 1px solid #444;
-            padding-top: 15px;
-          "
-        >
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 10px;">
-            <input type="checkbox" id="mediaflowEnabled" style="width: 18px; height: 18px;">
+        <div class="form-group" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 15px">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 10px">
+            <input type="checkbox" id="mediaflowEnabled" style="width: 18px; height: 18px" />
             <span>Enable Mediaflow Proxy</span>
           </label>
-          <div class="help-text" style="margin-bottom: 10px">
-            Proxy streams through Mediaflow to hide your IP or improve
-            connectivity.
-          </div>
-          
-          <div id="mediaflowFields" style="display: none;">
+          <div class="help-text" style="margin-bottom: 10px">Proxy streams through Mediaflow to hide your IP or improve connectivity.</div>
+          <div id="mediaflowFields" style="display: none">
             <div class="url-input-group" style="margin-bottom: 10px">
-              <label for="mediaflowProxyUrl" style="font-size: 0.9em; color: #aaa"
-                >Proxy URL</label
-              >
-              <input
-                type="text"
-                id="mediaflowProxyUrl"
-                name="mediaflowProxyUrl"
-                placeholder="https://mediaflow.yourdomain.com"
-              />
+              <label for="mediaflowProxyUrl" style="font-size: 0.9em; color: #aaa">Proxy URL</label>
+              <input type="text" id="mediaflowProxyUrl" name="mediaflowProxyUrl" placeholder="https://mediaflow.yourdomain.com" />
             </div>
             <div class="url-input-group" style="margin-bottom: 10px">
-              <label
-                for="mediaflowApiPassword"
-                style="font-size: 0.9em; color: #aaa"
-                >API Password</label
-              >
-              <input
-                type="password"
-                id="mediaflowApiPassword"
-                name="mediaflowApiPassword"
-                placeholder="Your Mediaflow API Password"
-              />
+              <label for="mediaflowApiPassword" style="font-size: 0.9em; color: #aaa">API Password</label>
+              <input type="password" id="mediaflowApiPassword" name="mediaflowApiPassword" placeholder="Your Mediaflow API Password" />
             </div>
             <div class="url-input-group">
-              <label for="mediaflowPublicIp" style="font-size: 0.9em; color: #aaa"
-                >Public IP (Optional)</label
-              >
-              <input
-                type="text"
-                id="mediaflowPublicIp"
-                name="mediaflowPublicIp"
-                placeholder="Public IP of Mediaflow server"
-              />
+              <label for="mediaflowPublicIp" style="font-size: 0.9em; color: #aaa">Public IP (Optional)</label>
+              <input type="text" id="mediaflowPublicIp" name="mediaflowPublicIp" placeholder="Public IP of Mediaflow server" />
             </div>
           </div>
         </div>
@@ -237,18 +120,11 @@
         <!-- Global Filters Section -->
         <div class="form-group">
           <label>Global Filters</label>
-          <div class="help-text" style="margin-bottom: 10px">
-            Filter results by quality, resolution, HDR and 3D. Uncheck to hide
-            that type.
-          </div>
+          <div class="help-text" style="margin-bottom: 10px">Filter results by quality, resolution, HDR and 3D. Uncheck to hide that type.</div>
 
           <div class="filter-section">
             <div class="filter-title">Resolution</div>
-            <div
-              class="multi-select"
-              id="resolutionSelect"
-              data-name="filter_res"
-            >
+            <div class="multi-select" id="resolutionSelect" data-name="filter_res">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
                 <div class="multi-select-option" data-value="4k">4K/2160p</div>
@@ -265,24 +141,14 @@
 
           <div class="filter-section">
             <div class="filter-title">Quality</div>
-            <div
-              class="multi-select"
-              id="qualitySelect"
-              data-name="filter_quality"
-            >
+            <div class="multi-select" id="qualitySelect" data-name="filter_quality">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="bluray">
-                  BluRay/BDRip/Remux
-                </div>
-                <div class="multi-select-option" data-value="webdl">
-                  WEB-DL/WEBRip
-                </div>
+                <div class="multi-select-option" data-value="bluray">BluRay/BDRip/Remux</div>
+                <div class="multi-select-option" data-value="webdl">WEB-DL/WEBRip</div>
                 <div class="multi-select-option" data-value="hdtv">HDTV</div>
                 <div class="multi-select-option" data-value="dvd">DVDRip</div>
-                <div class="multi-select-option" data-value="cam">
-                  CAM/TS/SCR
-                </div>
+                <div class="multi-select-option" data-value="cam">CAM/TS/SCR</div>
               </div>
             </div>
           </div>
@@ -292,111 +158,51 @@
             <div class="multi-select" id="hdrSelect" data-name="filter_hdr">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="dolbyvision">
-                  Dolby Vision
-                </div>
-                <div class="multi-select-option" data-value="hdr10plus">
-                  HDR10+
-                </div>
+                <div class="multi-select-option" data-value="dolbyvision">Dolby Vision</div>
+                <div class="multi-select-option" data-value="hdr10plus">HDR10+</div>
                 <div class="multi-select-option" data-value="hdr10">HDR10</div>
                 <div class="multi-select-option" data-value="hdr">HDR</div>
-                <div class="multi-select-option" data-value="sdr">
-                  SDR (Non-HDR)
-                </div>
+                <div class="multi-select-option" data-value="sdr">SDR (Non-HDR)</div>
               </div>
             </div>
           </div>
 
           <div class="filter-section">
             <div class="filter-title">Language</div>
-            <div
-              class="multi-select"
-              id="languageSelect"
-              data-name="filter_language"
-            >
+            <div class="multi-select" id="languageSelect" data-name="filter_language">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="english">
-                  English
-                </div>
-                <div class="multi-select-option" data-value="vietnamese">
-                  Vietnamese
-                </div>
-                <div class="multi-select-option" data-value="chinese">
-                  Chinese
-                </div>
-                <div class="multi-select-option" data-value="japanese">
-                  Japanese
-                </div>
-                <div class="multi-select-option" data-value="korean">
-                  Korean
-                </div>
-                <div class="multi-select-option" data-value="french">
-                  French
-                </div>
-                <div class="multi-select-option" data-value="german">
-                  German
-                </div>
-                <div class="multi-select-option" data-value="spanish">
-                  Spanish
-                </div>
-                <div class="multi-select-option" data-value="italian">
-                  Italian
-                </div>
-                <div class="multi-select-option" data-value="portuguese">
-                  Portuguese
-                </div>
-                <div class="multi-select-option" data-value="russian">
-                  Russian
-                </div>
+                <div class="multi-select-option" data-value="english">English</div>
+                <div class="multi-select-option" data-value="vietnamese">Vietnamese</div>
+                <div class="multi-select-option" data-value="chinese">Chinese</div>
+                <div class="multi-select-option" data-value="japanese">Japanese</div>
+                <div class="multi-select-option" data-value="korean">Korean</div>
+                <div class="multi-select-option" data-value="french">French</div>
+                <div class="multi-select-option" data-value="german">German</div>
+                <div class="multi-select-option" data-value="spanish">Spanish</div>
+                <div class="multi-select-option" data-value="italian">Italian</div>
+                <div class="multi-select-option" data-value="portuguese">Portuguese</div>
+                <div class="multi-select-option" data-value="russian">Russian</div>
                 <div class="multi-select-option" data-value="hindi">Hindi</div>
                 <div class="multi-select-option" data-value="thai">Thai</div>
-                <div class="multi-select-option" data-value="indonesian">
-                  Indonesian
-                </div>
-                <div class="multi-select-option" data-value="arabic">
-                  Arabic
-                </div>
-                <div class="multi-select-option" data-value="turkish">
-                  Turkish
-                </div>
-                <div class="multi-select-option" data-value="polish">
-                  Polish
-                </div>
+                <div class="multi-select-option" data-value="indonesian">Indonesian</div>
+                <div class="multi-select-option" data-value="arabic">Arabic</div>
+                <div class="multi-select-option" data-value="turkish">Turkish</div>
+                <div class="multi-select-option" data-value="polish">Polish</div>
                 <div class="multi-select-option" data-value="dutch">Dutch</div>
-                <div class="multi-select-option" data-value="swedish">
-                  Swedish
-                </div>
-                <div class="multi-select-option" data-value="danish">
-                  Danish
-                </div>
-                <div class="multi-select-option" data-value="norwegian">
-                  Norwegian
-                </div>
-                <div class="multi-select-option" data-value="finnish">
-                  Finnish
-                </div>
+                <div class="multi-select-option" data-value="swedish">Swedish</div>
+                <div class="multi-select-option" data-value="danish">Danish</div>
+                <div class="multi-select-option" data-value="norwegian">Norwegian</div>
+                <div class="multi-select-option" data-value="finnish">Finnish</div>
                 <div class="multi-select-option" data-value="greek">Greek</div>
                 <div class="multi-select-option" data-value="czech">Czech</div>
-                <div class="multi-select-option" data-value="hungarian">
-                  Hungarian
-                </div>
-                <div class="multi-select-option" data-value="romanian">
-                  Romanian
-                </div>
-                <div class="multi-select-option" data-value="hebrew">
-                  Hebrew
-                </div>
+                <div class="multi-select-option" data-value="hungarian">Hungarian</div>
+                <div class="multi-select-option" data-value="romanian">Romanian</div>
+                <div class="multi-select-option" data-value="hebrew">Hebrew</div>
                 <div class="multi-select-option" data-value="malay">Malay</div>
-                <div class="multi-select-option" data-value="tagalog">
-                  Tagalog/Filipino
-                </div>
-                <div class="multi-select-option" data-value="ukrainian">
-                  Ukrainian
-                </div>
-                <div class="multi-select-option" data-value="multi">
-                  Multi/Dual Audio
-                </div>
+                <div class="multi-select-option" data-value="tagalog">Tagalog/Filipino</div>
+                <div class="multi-select-option" data-value="ukrainian">Ukrainian</div>
+                <div class="multi-select-option" data-value="multi">Multi/Dual Audio</div>
               </div>
             </div>
           </div>
@@ -404,26 +210,8 @@
           <div class="filter-section">
             <div class="filter-title">3D</div>
             <div class="filter-options">
-              <label class="checkbox-label"
-                ><input
-                  type="checkbox"
-                  name="filter_3d"
-                  value="3d"
-                  id="filter3dOnly"
-                  disabled
-                />
-                Show 3D Only</label
-              >
-              <label class="checkbox-label"
-                ><input
-                  type="checkbox"
-                  name="filter_3d"
-                  value="no3d"
-                  id="filterHide3d"
-                  checked
-                />
-                Hide 3D</label
-              >
+              <label class="checkbox-label"><input type="checkbox" name="filter_3d" value="3d" id="filter3dOnly" disabled /> Show 3D Only</label>
+              <label class="checkbox-label"><input type="checkbox" name="filter_3d" value="no3d" id="filterHide3d" checked /> Hide 3D</label>
             </div>
           </div>
 
@@ -432,110 +220,43 @@
             <div class="multi-select" id="sortBySelect" data-name="sort_by">
               <div class="multi-select-tags"></div>
               <div class="multi-select-dropdown">
-                <div class="multi-select-option" data-value="seeders">
-                  Seeders (high → low)
-                </div>
-                <div class="multi-select-option" data-value="size">
-                  Size (large → small)
-                </div>
-                <div class="multi-select-option" data-value="quality">
-                  Quality (best → worst)
-                </div>
-                <div class="multi-select-option" data-value="resolution">
-                  Resolution (high → low)
-                </div>
+                <div class="multi-select-option" data-value="seeders">Seeders (high → low)</div>
+                <div class="multi-select-option" data-value="size">Size (large → small)</div>
+                <div class="multi-select-option" data-value="quality">Quality (best → worst)</div>
+                <div class="multi-select-option" data-value="resolution">Resolution (high → low)</div>
               </div>
             </div>
           </div>
         </div>
+
         <button type="submit" id="generateBtn">Generate Link</button>
       </form>
 
-      <div
-        id="resultArea"
-        style="
-          display: none;
-          margin-top: 20px;
-          border-top: 1px solid #444;
-          padding-top: 20px;
-        "
-      >
+      <div id="resultArea" style="display: none; margin-top: 20px; border-top: 1px solid #444; padding-top: 20px">
         <div class="form-group">
           <label for="generatedLink">Addon Link</label>
-          <input
-            type="text"
-            id="generatedLink"
-            readonly
-            style="background-color: #222; color: #aaa"
-          />
+          <input type="text" id="generatedLink" readonly style="background-color: #222; color: #aaa" />
         </div>
         <div style="display: flex; gap: 10px">
-          <button id="copyBtn" style="background-color: #2196f3">
-            Copy Link
-          </button>
-          <a
-            id="installBtn"
-            style="
-              background-color: #4caf50;
-              padding: 10px;
-              color: white;
-              text-decoration: none;
-              border-radius: 4px;
-              text-align: center;
-              display: inline-block;
-              flex: 1;
-              font-weight: bold;
-              cursor: pointer;
-            "
-            >Install on Stremio</a
-          >
+          <button id="copyBtn" style="background-color: #2196f3">Copy Link</button>
+          <a id="installBtn" style="background-color: #4caf50; padding: 10px; color: white; text-decoration: none; border-radius: 4px; text-align: center; display: inline-block; flex: 1; font-weight: bold; cursor: pointer">Install on Stremio</a>
         </div>
       </div>
 
-      <div
-        style="margin-top: 30px; border-top: 1px dashed #444; padding-top: 10px"
-      >
-        <button type="button" class="collapsible donation-btn-gold">
-          ☕ Support Me - Buy Me a Tea!
-        </button>
+      <div style="margin-top: 30px; border-top: 1px dashed #444; padding-top: 10px">
+        <button type="button" class="collapsible donation-btn-gold">☕ Support Me - Buy Me a Tea!</button>
         <div class="content donation-content-box">
           <div class="donation-text">☕ Buy Me a Tea ☕</div>
-          <img
-            src="https://storage3.me-qr.com/qr/328963290.png?v=1775314777"
-            alt="Donation QR Code"
-            class="donation-qr"
-          />
+          <img src="https://storage3.me-qr.com/qr/328963290.png?v=1775314777" alt="Donation QR Code" class="donation-qr" />
           <div style="margin-top: 15px">
-            <a
-              href="https://ko-fi.com/brynts"
-              target="_blank"
-              style="
-                color: #ffd700;
-                text-decoration: none;
-                font-weight: bold;
-                border: 1px solid #ffd700;
-                padding: 8px 15px;
-                border-radius: 5px;
-              "
-            >
-              ☕ Buy Me a Tea
-            </a>
+            <a href="https://ko-fi.com/brynts" target="_blank" style="color: #ffd700; text-decoration: none; font-weight: bold; border: 1px solid #ffd700; padding: 8px 15px; border-radius: 5px">☕ Buy Me a Tea</a>
           </div>
         </div>
       </div>
 
-      <div
-        id="statusMessage"
-        style="
-          color: yellow;
-          text-align: center;
-          margin-top: 10px;
-          font-weight: bold;
-          min-height: 20px;
-        "
-      ></div>
+      <div id="statusMessage" style="color: yellow; text-align: center; margin-top: 10px; font-weight: bold; min-height: 20px"></div>
     </div>
 
-    <script src="/assets/js/script.js"></script>
+    <script src="assets/js/script.js"></script>
   </body>
 </html>
