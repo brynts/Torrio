@@ -24,18 +24,14 @@ async function fetchUpstreamStreams(upstreamUrl, type, id) {
   try {
     let url = upstreamUrl.trim();
     if (!url.startsWith('http')) url = 'https://' + url;
-    
-    // Stremio standard: ganti /manifest.json jadi /stream/<type>/<id>.json
     let streamUrl = url.replace(/\/manifest\.json(\?.*)?$/, '');
     streamUrl = streamUrl.replace(/\/$/, '');
     streamUrl += `/stream/${type}/${id}`;
-
     console.log(`[Torrio] Fetching: ${streamUrl}`);
     const res = await fetch(streamUrl, {
       headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json' },
       signal: AbortSignal.timeout(15000)
     });
-    
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.streams || [];
@@ -47,7 +43,7 @@ async function fetchUpstreamStreams(upstreamUrl, type, id) {
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  const pn = url.pathname;
+  let pn = url.pathname;  // ✅ FIX: Pakai let, bukan const
 
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -82,24 +78,17 @@ http.createServer(async (req, res) => {
     const id = sMatch[3];
     const configJson = safeAtob(cfgKey);
     const config = configJson ? JSON.parse(configJson) : {};
-
-    // Ambil upstream URLs (newline separated)
     const upstreamUrls = (config.upstream_url || '').split('\n').filter(u => u.trim());
     if (upstreamUrls.length === 0) upstreamUrls.push('https://torrentio.strem.fun');
 
     try {
-      // Fetch semua upstream parallel
       const results = await Promise.allSettled(
         upstreamUrls.map(u => fetchUpstreamStreams(u, type, id))
       );
-
       let allStreams = [];
       results.forEach(r => { if (r.status === 'fulfilled') allStreams.push(...r.value); });
-
-      // Limit max streams
       const max = config.max_streams || 20;
       const finalStreams = allStreams.slice(0, max);
-
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ streams: finalStreams }));
     } catch (err) {
@@ -114,10 +103,8 @@ http.createServer(async (req, res) => {
   let fp = path.join(__dirname, pn);
   const root = path.resolve(__dirname);
   if (!fp.startsWith(root)) { res.writeHead(403); return res.end('Forbidden'); }
-
   const ext = path.extname(fp).toLowerCase();
   const ct = MIME_TYPES[ext] || 'application/octet-stream';
-
   fs.readFile(fp, (err, data) => {
     if (err) {
       if (err.code === 'ENOENT' && !ext) {
