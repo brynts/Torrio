@@ -20,21 +20,48 @@ function safeAtob(str) {
   } catch (e) { return null; }
 }
 
-// ✅ Convert magnet/infohash to TorrServer play URL
-function toTorrServerPlayUrl(torrHost, magnetOrLink, filename = 'video.mp4') {
+// ✅ Extract infohash from magnet/http link - supports multiple formats
+function extractInfoHash(url) {
   try {
-    let host = torrHost.trim().replace(/\/$/, '');
-    if (magnetOrLink.startsWith('magnet:')) {
-      const hashMatch = magnetOrLink.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
-      if (hashMatch) {
-        const infohash = hashMatch[1].toLowerCase();
-        return `${host}/play/${infohash}/${filename}`;
-      }
+    // Magnet link format
+    if (url.startsWith('magnet:')) {
+      const hashMatch = url.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
+      if (hashMatch) return hashMatch[1].toLowerCase();
     }
-    return magnetOrLink;
+    // TorrServer/Jackett direct link format: /play/<infohash>/...
+    const playMatch = url.match(/\/play\/([a-zA-Z0-9]{40})\//i);
+    if (playMatch) return playMatch[1].toLowerCase();
+    // Infohash as hostname (rare)
+    const hostMatch = url.match(/^(?:https?:\/\/)?([a-zA-Z0-9]{40})\./i);
+    if (hostMatch) return hostMatch[1].toLowerCase();
+    return null;
+  } catch (e) {
+    console.error('[Torrio] InfoHash extraction error:', e.message);
+    return null;
+  }
+}
+
+// ✅ Convert any torrent link to TorrServer play URL
+function toTorrServerPlayUrl(torrHost, url, filename = 'video.mp4') {
+  try {
+    if (!torrHost || !url) return url;
+    let host = torrHost.trim().replace(/\/$/, '');
+    
+    // If already a TorrServer play URL, return as-is
+    if (url.includes('/play/') && url.startsWith(host)) return url;
+    
+    // Extract infohash and build play URL
+    const infohash = extractInfoHash(url);
+    if (infohash) {
+      return `${host}/play/${infohash}/${filename}`;
+    }
+    
+    // If can't extract, return original URL (fallback)
+    console.log(`[Torrio] Could not extract infohash from: ${url.slice(0, 100)}...`);
+    return url;
   } catch (e) {
     console.error('[Torrio] TorrServer URL conversion error:', e.message);
-    return magnetOrLink;
+    return url;
   }
 }
 
@@ -47,7 +74,7 @@ async function fetchTorrServer(torrHost, torrUsername, torrPassword, type, id) {
     
     const headers = { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json' };
     
-    // ✅ HTTP Basic Auth (RFC 7617)
+    // HTTP Basic Auth (RFC 7617)
     if (torrUsername && torrPassword) {
       const credentials = Buffer.from(`${torrUsername}:${torrPassword}`).toString('base64');
       headers['Authorization'] = `Basic ${credentials}`;
@@ -104,8 +131,10 @@ async function fetchTorznab(torznabUrl, type, id) {
     const urlObj = new URL(torznabUrl.trim());
     const apiKey = urlObj.searchParams.get('apikey') || urlObj.searchParams.get('apiKey') || '';
     const isProwlarrNative = urlObj.pathname.includes('/api/v1/search');
+    
     let searchUrl = `${urlObj.origin}${urlObj.pathname}?`;
     const params = new URLSearchParams();
+    
     if (isProwlarrNative) {
       console.log('[Torrio] Using Prowlarr Native API v1');
       if (type === 'movie') params.set('type', 'movie');
@@ -117,30 +146,50 @@ async function fetchTorznab(torznabUrl, type, id) {
       else if (type === 'series') params.set('t', 'tvsearch');
       else params.set('t', 'search');
     }
+    
     const imdbMatch = id.match(/(tt\d+)/);
     if (imdbMatch) params.set('imdbid', imdbMatch[1]);
     const query = id.replace('.json', '');
     if (query) params.set('q', query);
     if (apiKey) params.set('apikey', apiKey);
     params.set('limit', '100');
+    
     searchUrl += params.toString();
     console.log(`[Torrio] Fetching: ${searchUrl}`);
-    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json, application/xml' }, signal: AbortSignal.timeout(20000) });
+    
+    const res = await fetch(searchUrl, {
+      headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json, application/xml' },
+      signal: AbortSignal.timeout(20000)
+    });
+    
     if (!res.ok) { console.error(`[Torrio] Torznab HTTP ${res.status}`); throw new Error(`HTTP ${res.status}`); }
+    
     const data = await res.json();
     const streams = [];
+    
+    // Handle both array flat and {Results: [...]} formats
     const results = Array.isArray(data) ? data : (data.Results && Array.isArray(data.Results) ? data.Results : []);
     console.log(`[Torrio] Processing ${results.length} results`);
+    
     results.forEach(item => {
-      const magnetOrLink = item.MagnetUri || item.MagnetURI || item.Link || item.Guid || item.downloadUrl;
+      // ✅ Support multiple magnet/link fields from Prowlarr
+      const magnetOrLink = item.MagnetUri || item.MagnetURI || item.Link || item.Guid || item.downloadUrl || item.torrent;
       if (magnetOrLink) {
         const size = item.Size ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
         const seeders = item.Seeders || item.seeders || 0;
         const peers = item.Peers || item.Leechers || item.peers || 0;
         const title = item.Title || item.title || 'Unknown';
-        streams.push({ name: `Prowlarr\n${size}`, title: `${title}\n👥 ${seeders} | 🔽 ${peers}`, url: magnetOrLink, seeders, size: item.Size || item.size || 0 });
+        
+        streams.push({
+          name: `Prowlarr\n${size}`,
+          title: `${title}\n👥 ${seeders} | 🔽 ${peers}`,
+          url: magnetOrLink, // Will be wrapped later if TorrServer enabled
+          seeders: seeders,
+          size: item.Size || item.size || 0
+        });
       }
     });
+    
     console.log(`[Torrio] Torznab found ${streams.length} streams`);
     return streams;
   } catch (err) { console.error(`[Torrio] Torznab failed: ${err.message}`); return []; }
@@ -160,7 +209,13 @@ async function fetchJacred(jacredUrl, type, id) {
     if (Array.isArray(data)) {
       data.forEach(item => {
         if (item.magnet || item.torrent || item.download) {
-          streams.push({ name: `Jacred\n${item.quality || ''} ${item.size ? (item.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : ''}`, title: `${item.title || 'Unknown'}\n👥 ${item.seeders || 0}`, url: item.magnet || item.torrent || item.download, seeders: item.seeders || 0, size: item.size || 0 });
+          streams.push({
+            name: `Jacred\n${item.quality || ''} ${item.size ? (item.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : ''}`,
+            title: `${item.title || 'Unknown'}\n👥 ${item.seeders || 0}`,
+            url: item.magnet || item.torrent || item.download,
+            seeders: item.seeders || 0,
+            size: item.size || 0
+          });
         }
       });
     }
@@ -198,6 +253,7 @@ function applyFilters(streams, filters, applyGlobalFilter = true) {
   if (!streams || !Array.isArray(streams)) return streams;
   if (!applyGlobalFilter) return streams;
   let filtered = [...streams];
+  
   if (filters?.resolution?.length) {
     const resMap = { '4k': ['4k', '2160p', 'uhd', '3840'], '1440p': ['1440p', '2k', '2560'], '1080p': ['1080p', 'fhd', '1920', '1920x1080', 'fullhd'], '720p': ['720p', 'hd', '1280', '1280x720'], '576p': ['576p', 'pal', '720x576'], '480p': ['480p', 'sd', '854x480', '640x480', '720x480', 'ntsc'], '360p': ['360p', '640x360'], 'other': ['other', 'unknown'] };
     filtered = filtered.filter(s => { const t = ((s.title || '') + (s.name || '')).toLowerCase(); return filters.resolution.some(r => { const keywords = resMap[r.toLowerCase()] || [r.toLowerCase()]; return keywords.some(k => t.includes(k)); }); });
@@ -229,22 +285,32 @@ function applyFilters(streams, filters, applyGlobalFilter = true) {
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let pn = url.pathname;
+  
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
   
+  // MANIFEST
   const mMatch = pn.match(/^\/([^/]+)\/manifest\.json$/);
   if (mMatch) {
     const cfgKey = mMatch[1];
     const host = req.headers.host || 'localhost';
     const proto = req.headers['x-forwarded-proto'] || 'http';
     const base = `${proto}://${host}`;
-    const manifest = { id: 'org.stremio.Torrio', version: '1.0', name: 'Torrio', description: 'Stremio addon Torrio (Configured)', types: ['movie', 'series', 'anime'], catalogs: [], resources: ['stream'], logo: `https://torz.sapu.tr/icon.png`, idPrefixes: ['tt', 'kitsu'], behaviorHints: { configurable: true, configurationRequired: false }, configurationURL: `${base}/${cfgKey}/configure` };
+    const manifest = {
+      id: 'org.stremio.Torrio', version: '1.0', name: 'Torrio',
+      description: 'Stremio addon Torrio (Configured)',
+      types: ['movie', 'series', 'anime'], catalogs: [], resources: ['stream'],
+      logo: `https://torz.sapu.tr/icon.png`, idPrefixes: ['tt', 'kitsu'],
+      behaviorHints: { configurable: true, configurationRequired: false },
+      configurationURL: `${base}/${cfgKey}/configure`
+    };
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify(manifest));
   }
   
+  // STREAM REQUEST
   const sMatch = pn.match(/^\/([^/]+)\/stream\/(movie|series|anime)\/([^/]+\.json)$/);
   if (sMatch) {
     const cfgKey = sMatch[1];
@@ -260,56 +326,78 @@ http.createServer(async (req, res) => {
     const upstreamUrls = (config.upstream_url || '').split('\n').filter(u => u.trim());
     const upstreamFilters = config.upstream_filters || [];
     const upstreamDirect = config.upstream_direct || [];
-    if (upstreamUrls.length === 0) upstreamUrls.push('https://torrentio.strem.fun');
     
+    if (upstreamUrls.length === 0) upstreamUrls.push('https://torrentio.strem.fun');
     const filters = config.filters || {};
     const maxStreams = config.max_streams || 20;
     
     try {
       let allStreams = [];
       
-      // ✅ If TorrServer is configured, fetch from it FIRST
+      // ✅ Fetch from TorrServer if configured
       if (torrHost) {
         console.log('[Torrio] TorrServer configured, fetching from TorrServer...');
         const torrStreams = await fetchTorrServer(torrHost, torrUsername, torrPassword, type, id);
-        // Wrap TorrServer streams with play URL if not direct
-        torrStreams.forEach(s => { if (s.url && !upstreamDirect[0]) s.url = toTorrServerPlayUrl(torrHost, s.url); });
+        // TorrServer already returns play URLs, no need to wrap
         allStreams.push(...torrStreams);
       }
       
-      // ✅ Fetch from upstream URLs
+      // ✅ Fetch from upstream URLs with per-URL settings
       for (let i = 0; i < upstreamUrls.length; i++) {
         const upstreamUrl = upstreamUrls[i];
-        const applyFilter = upstreamFilters[i] !== false;
-        const useDirect = upstreamDirect[i] === true;
+        const applyFilter = upstreamFilters[i] !== false; // Default true
+        const useDirect = upstreamDirect[i] === true; // Default false
         
         console.log(`[Torrio] Fetching upstream ${i+1}: ${upstreamUrl}`);
-        console.log(`[Torrio] Apply global filter: ${applyFilter}, Direct: ${useDirect}`);
+        console.log(`[Torrio] Apply global filter: ${applyFilter}, Direct: ${useDirect}, TorrServer wrap: ${!!torrHost && !useDirect}`);
         
         try {
           const streams = await fetchFromUpstream(upstreamUrl, type, id);
           const filteredStreams = applyFilters(streams, filters, applyFilter);
           
-          // ✅ Wrap magnet links with TorrServer play URL if configured and not direct
+          // ✅ Wrap ALL upstream streams with TorrServer play URL if enabled and not direct
           if (torrHost && !useDirect) {
-            filteredStreams.forEach(s => { if (s.url) s.url = toTorrServerPlayUrl(torrHost, s.url); });
+            filteredStreams.forEach(s => {
+              if (s.url) {
+                const originalUrl = s.url;
+                s.url = toTorrServerPlayUrl(torrHost, s.url);
+                if (s.url !== originalUrl) {
+                  console.log(`[Torrio] Wrapped stream URL: ${originalUrl.slice(0, 80)}... → ${s.url.slice(0, 80)}...`);
+                }
+              }
+            });
           }
           
           const limitedStreams = useDirect ? filteredStreams : filteredStreams.slice(0, maxStreams);
           allStreams.push(...limitedStreams);
           console.log(`[Torrio] Upstream ${i+1}: ${streams.length} → ${limitedStreams.length} streams`);
-        } catch (err) { console.error(`[Torrio] Upstream ${i+1} failed:`, err.message); }
+        } catch (err) {
+          console.error(`[Torrio] Upstream ${i+1} failed:`, err.message);
+        }
       }
       
       // Final sort & limit
-      if (filters?.sort_by?.[0] === 'seeders') { allStreams.sort((a, b) => (b.seeders || 0) - (a.seeders || 0)); }
-      else if (filters?.sort_by?.[0] === 'resolution') {
+      if (filters?.sort_by?.[0] === 'seeders') {
+        allStreams.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+      } else if (filters?.sort_by?.[0] === 'resolution') {
         const resOrder = { '4k':4, '2160p':4, '1440p':3, '1080p':2, '720p':1, '576p':0, '480p':0, '360p':0 };
-        allStreams.sort((a, b) => { const ta = ((a.title||'')+(a.name||'')).toLowerCase(); const tb = ((b.title||'')+(b.name||'')).toLowerCase(); const ra = Object.keys(resOrder).find(r => ta.includes(r)) || 'other'; const rb = Object.keys(resOrder).find(r => tb.includes(r)) || 'other'; return (resOrder[rb]||0) - (resOrder[ra]||0); });
+        allStreams.sort((a, b) => {
+          const ta = ((a.title||'')+(a.name||'')).toLowerCase();
+          const tb = ((b.title||'')+(b.name||'')).toLowerCase();
+          const ra = Object.keys(resOrder).find(r => ta.includes(r)) || 'other';
+          const rb = Object.keys(resOrder).find(r => tb.includes(r)) || 'other';
+          return (resOrder[rb]||0) - (resOrder[ra]||0);
+        });
       }
       
       const finalStreams = allStreams.slice(0, maxStreams);
       console.log(`[Torrio] Returning ${finalStreams.length} streams to Stremio`);
+      
+      // Debug: log first stream URL format
+      if (finalStreams.length > 0) {
+        console.log(`[Torrio] Sample stream URL: ${finalStreams[0].url?.slice(0, 100)}...`);
+      }
+      
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ streams: finalStreams }));
       
@@ -320,6 +408,7 @@ http.createServer(async (req, res) => {
     }
   }
   
+  // STATIC FILES
   if (pn === '/' || pn === '/index.html') pn = '/index.html';
   let fp = path.join(__dirname, pn);
   const root = path.resolve(__dirname);
