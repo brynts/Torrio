@@ -33,55 +33,13 @@ function safeAtob(str) {
   }
 }
 
-// ✅ Extract infohash from any torrent link format
-function extractInfoHash(url) {
-  try {
-    if (!url) return null;
-    
-    // Magnet link: magnet:?xt=urn:btih:ABC123...
-    if (url.startsWith('magnet:')) {
-      const match = url.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
-      if (match) return match[1].toLowerCase();
-    }
-    
-    // TorrServer play URL: /play/ABC123/...
-    const playMatch = url.match(/\/play\/([a-zA-Z0-9]{40})\//i);
-    if (playMatch) return playMatch[1].toLowerCase();
-    
-    // Infohash as hostname: abc123...:8090
-    const hostMatch = url.match(/^(?:https?:\/\/)?([a-zA-Z0-9]{40})[\/:\.]/i);
-    if (hostMatch) return hostMatch[1].toLowerCase();
-    
-    // Prowlarr downloadUrl link param (base64 encoded infohash)
-    if (url.includes('/download?') && url.includes('link=')) {
-      try {
-        const urlObj = new URL(url);
-        const linkParam = urlObj.searchParams.get('link');
-        if (linkParam) {
-          const decoded = Buffer.from(linkParam, 'base64').toString('utf-8');
-          if (/^[a-fA-F0-9]{40}$/.test(decoded)) {
-            return decoded.toLowerCase();
-          }
-        }
-      } catch (e) {
-        // Ignore decode errors
-      }
-    }
-    
-    return null;
-  } catch (e) {
-    console.error('[Torrio] InfoHash extraction error:', e.message);
-    return null;
-  }
-}
-
 // ✅ Convert any torrent link to TorrServer play URL
 function toTorrServerPlayUrl(torrHost, streamObj, filename = 'video.mp4') {
   try {
     if (!torrHost) return streamObj.url;
     let host = torrHost.trim().replace(/\/$/, '');
     
-    // ✅ PRIORITAS: Jika stream punya _infoHash valid (dari Prowlarr), pakai langsung
+    // ✅ PRIORITAS 1: Jika stream punya _infoHash valid (dari Prowlarr), pakai langsung
     if (streamObj._infoHash && /^[a-fA-F0-9]{40}$/.test(streamObj._infoHash)) {
       return `${host}/play/${streamObj._infoHash}/${filename}`;
     }
@@ -92,7 +50,7 @@ function toTorrServerPlayUrl(torrHost, streamObj, filename = 'video.mp4') {
     // Jika sudah TorrServer play URL, return as-is
     if (url.includes('/play/') && url.startsWith(host)) return url;
     
-    // Fallback: extract infohash dari URL
+    // Fallback: extract infohash dari magnet URL
     if (url.startsWith('magnet:')) {
       const match = url.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
       if (match) {
@@ -100,7 +58,7 @@ function toTorrServerPlayUrl(torrHost, streamObj, filename = 'video.mp4') {
       }
     }
     
-    // Jika tidak bisa extract, return original URL
+    // Jika tidak bisa extract, return original URL (fallback)
     console.log(`[Torrio] Could not extract infohash, passing URL as-is: ${url.slice(0, 80)}...`);
     return url;
     
@@ -244,11 +202,11 @@ async function fetchTorznab(torznabUrl, type, id) {
     console.log(`[Torrio] Processing ${results.length} results`);
     
     results.forEach(item => {
-      // ✅ PRIORITAS: Gunakan InfoHash field dari Prowlarr (jika ada)
+      // ✅ PRIORITAS: Gunakan InfoHash field dari Prowlarr (jika ada) - PALING RELIABLE
       let magnetOrLink = null;
       let infoHash = null;
       
-      // Priority 1: InfoHash field (40-char hex) - PALING RELIABLE
+      // Priority 1: InfoHash field (40-char hex) - clean infohash dari Prowlarr
       if (item.InfoHash && typeof item.InfoHash === 'string' && /^[a-fA-F0-9]{40}$/.test(item.InfoHash)) {
         infoHash = item.InfoHash.toLowerCase();
         magnetOrLink = `magnet:?xt=urn:btih:${infoHash}`;
@@ -265,10 +223,10 @@ async function fetchTorznab(torznabUrl, type, id) {
       else if (item.Link || item.Guid) {
         magnetOrLink = item.Link || item.Guid;
       }
-      // Priority 4: downloadUrl (fallback - pass as-is)
+      // Priority 4: downloadUrl (fallback - pass as-is, try extract from link param)
       else if (item.downloadUrl) {
         magnetOrLink = item.downloadUrl;
-        // Try extract from downloadUrl link param (optional)
+        // Try extract from downloadUrl link param (optional fallback)
         try {
           const dlUrl = new URL(item.downloadUrl);
           const linkParam = dlUrl.searchParams.get('link');
@@ -276,6 +234,7 @@ async function fetchTorznab(torznabUrl, type, id) {
             const decoded = Buffer.from(linkParam, 'base64').toString('utf-8');
             if (/^[a-fA-F0-9]{40}$/.test(decoded)) {
               infoHash = decoded.toLowerCase();
+              console.log(`[Torrio] Decoded InfoHash from downloadUrl: ${infoHash}`);
             }
           }
         } catch (e) { /* ignore */ }
@@ -650,4 +609,3 @@ http.createServer(async (req, res) => {
   });
   
 }).listen(PORT, '0.0.0.0', () => console.log(`✅ Torrio running on port ${PORT}`));
-
