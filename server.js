@@ -384,18 +384,19 @@ async function fetchFromUpstream(upstreamUrl, type, id) {
 // Filter & Sort Logic
 // =========================================
 
-// Apply filters - more forgiving matching
+// Apply filters - flexible matching for Prowlarr/Torrentio titles
 function applyFilters(streams, filters) {
   if (!streams || !Array.isArray(streams)) return streams;
+  
   let filtered = [...streams];
 
-  // Resolution filter - flexible matching
+  // Resolution filter - flexible keyword mapping
   if (filters?.resolution?.length) {
     const resMap = {
-      '4k': ['4k', '2160p', 'uhd'],
-      '1080p': ['1080p', 'fhd', '1920'],
-      '720p': ['720p', 'hd', '1280'],
-      '480p': ['480p', 'sd', '854x480', '640x480']
+      '4k': ['4k', '2160p', 'uhd', '3840'],
+      '1080p': ['1080p', 'fhd', '1920', '1920x1080'],
+      '720p': ['720p', 'hd', '1280', '1280x720'],
+      '480p': ['480p', 'sd', '854x480', '640x480', '720x480']
     };
     
     filtered = filtered.filter(s => {
@@ -407,14 +408,14 @@ function applyFilters(streams, filters) {
     });
   }
 
-  // Quality filter
+  // Quality filter - flexible mapping
   if (filters?.quality?.length) {
     const qMap = {
-      bluray: ['bluray', 'bdrip', 'remux', 'bdremux', 'blu-ray'],
-      webdl: ['webdl', 'webrip', 'web-dl', 'amzn', 'nf', 'dsnp', 'hulu'],
+      bluray: ['bluray', 'bdrip', 'remux', 'bdremux', 'blu-ray', 'brrip'],
+      webdl: ['webdl', 'webrip', 'web-dl', 'amzn', 'nf', 'dsnp', 'hulu', 'disney', 'apple'],
       hdtv: ['hdtv', 'tvrip'],
-      dvd: ['dvdrip', 'dvd', 'r5', 'scr'],
-      cam: ['cam', 'ts', 'tc', 'camsrip']
+      dvd: ['dvdrip', 'dvd', 'r5', 'scr', 'screener'],
+      cam: ['cam', 'ts', 'tc', 'camsrip', 'telecine']
     };
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
@@ -431,8 +432,7 @@ function applyFilters(streams, filters) {
       dolbyvision: ['dolby vision', 'dv ', 'dv.', 'dolbyvision'],
       hdr10plus: ['hdr10+', 'hdr10plus'],
       hdr10: ['hdr10'],
-      hdr: ['hdr'],
-      sdr: ['sdr']
+      hdr: ['hdr']
     };
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
@@ -456,10 +456,12 @@ function applyFilters(streams, filters) {
     filtered = filtered.filter(s => !((s.title || '') + (s.name || '')).toLowerCase().includes('3d'));
   }
 
-  // Sort
+  // Sort by seeders
   if (filters?.sort_by?.[0] === 'seeders') {
     filtered.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
-  } else if (filters?.sort_by?.[0] === 'resolution') {
+  }
+  // Sort by resolution
+  else if (filters?.sort_by?.[0] === 'resolution') {
     const resOrder = { '4k':4, '2160p':4, '1440p':3, '1080p':2, '720p':1, '576p':0, '480p':0, '360p':0 };
     filtered.sort((a, b) => {
       const ta = ((a.title||'')+(a.name||'')).toLowerCase();
@@ -470,7 +472,6 @@ function applyFilters(streams, filters) {
     });
   }
 
-  console.log(`[Torrio] Filters applied: ${streams.length} → ${filtered.length} streams`);
   return filtered;
 }
 
