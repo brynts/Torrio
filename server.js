@@ -384,52 +384,70 @@ async function fetchFromUpstream(upstreamUrl, type, id) {
 // Filter & Sort Logic
 // =========================================
 
+// Apply filters - more forgiving matching
 function applyFilters(streams, filters) {
   if (!streams || !Array.isArray(streams)) return streams;
   let filtered = [...streams];
 
-  // Resolution filter
+  // Resolution filter - flexible matching
   if (filters?.resolution?.length) {
+    const resMap = {
+      '4k': ['4k', '2160p', 'uhd'],
+      '1080p': ['1080p', 'fhd', '1920'],
+      '720p': ['720p', 'hd', '1280'],
+      '480p': ['480p', 'sd', '854x480', '640x480']
+    };
+    
     filtered = filtered.filter(s => {
-      const t = (s.title || '') + (s.name || '');
-      return filters.resolution.some(r => t.toLowerCase().includes(r.toLowerCase()));
+      const t = ((s.title || '') + (s.name || '')).toLowerCase();
+      return filters.resolution.some(r => {
+        const keywords = resMap[r.toLowerCase()] || [r.toLowerCase()];
+        return keywords.some(k => t.includes(k));
+      });
     });
   }
 
   // Quality filter
   if (filters?.quality?.length) {
     const qMap = {
-      bluray: ['bluray', 'bdrip', 'remux', 'bdremux'],
-      webdl: ['webdl', 'webrip'],
-      hdtv: ['hdtv'],
-      dvd: ['dvdrip', 'dvd'],
-      cam: ['cam', 'ts', 'scr']
+      bluray: ['bluray', 'bdrip', 'remux', 'bdremux', 'blu-ray'],
+      webdl: ['webdl', 'webrip', 'web-dl', 'amzn', 'nf', 'dsnp', 'hulu'],
+      hdtv: ['hdtv', 'tvrip'],
+      dvd: ['dvdrip', 'dvd', 'r5', 'scr'],
+      cam: ['cam', 'ts', 'tc', 'camsrip']
     };
     filtered = filtered.filter(s => {
-      const t = (s.title || '') + (s.name || '');
-      return filters.quality.some(q => qMap[q]?.some(k => t.toLowerCase().includes(k)));
+      const t = ((s.title || '') + (s.name || '')).toLowerCase();
+      return filters.quality.some(q => {
+        const keywords = qMap[q.toLowerCase()] || [q.toLowerCase()];
+        return keywords.some(k => t.includes(k));
+      });
     });
   }
 
   // HDR filter
   if (filters?.hdr?.length && !filters.hdr.includes('sdr')) {
     const hMap = {
-      dolbyvision: ['dolby vision', 'dv ', 'dv.'],
-      hdr10plus: ['hdr10+'],
+      dolbyvision: ['dolby vision', 'dv ', 'dv.', 'dolbyvision'],
+      hdr10plus: ['hdr10+', 'hdr10plus'],
       hdr10: ['hdr10'],
-      hdr: ['hdr']
+      hdr: ['hdr'],
+      sdr: ['sdr']
     };
     filtered = filtered.filter(s => {
-      const t = (s.title || '') + (s.name || '');
-      return filters.hdr.some(h => hMap[h]?.some(k => t.toLowerCase().includes(k)));
+      const t = ((s.title || '') + (s.name || '')).toLowerCase();
+      return filters.hdr.some(h => {
+        const keywords = hMap[h.toLowerCase()] || [h.toLowerCase()];
+        return keywords.some(k => t.includes(k));
+      });
     });
   }
 
   // Language filter
   if (filters?.language?.length) {
     filtered = filtered.filter(s => {
-      const t = (s.title || '') + (s.name || '');
-      return filters.language.some(l => t.toLowerCase().includes(l.toLowerCase()));
+      const t = ((s.title || '') + (s.name || '')).toLowerCase();
+      return filters.language.some(l => t.includes(l.toLowerCase()));
     });
   }
 
@@ -438,22 +456,21 @@ function applyFilters(streams, filters) {
     filtered = filtered.filter(s => !((s.title || '') + (s.name || '')).toLowerCase().includes('3d'));
   }
 
-  // Sort by seeders
+  // Sort
   if (filters?.sort_by?.[0] === 'seeders') {
     filtered.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
-  }
-  // Sort by resolution
-  else if (filters?.sort_by?.[0] === 'resolution') {
-    const resOrder = { '4k': 4, '2160p': 4, '1440p': 3, '1080p': 2, '720p': 1, '576p': 0, '480p': 0, '360p': 0 };
+  } else if (filters?.sort_by?.[0] === 'resolution') {
+    const resOrder = { '4k':4, '2160p':4, '1440p':3, '1080p':2, '720p':1, '576p':0, '480p':0, '360p':0 };
     filtered.sort((a, b) => {
-      const ta = ((a.title || '') + (a.name || '')).toLowerCase();
-      const tb = ((b.title || '') + (b.name || '')).toLowerCase();
+      const ta = ((a.title||'')+(a.name||'')).toLowerCase();
+      const tb = ((b.title||'')+(b.name||'')).toLowerCase();
       const ra = Object.keys(resOrder).find(r => ta.includes(r)) || 'other';
       const rb = Object.keys(resOrder).find(r => tb.includes(r)) || 'other';
-      return (resOrder[rb] || 0) - (resOrder[ra] || 0);
+      return (resOrder[rb]||0) - (resOrder[ra]||0);
     });
   }
 
+  console.log(`[Torrio] Filters applied: ${streams.length} → ${filtered.length} streams`);
   return filtered;
 }
 
