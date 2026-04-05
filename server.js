@@ -308,6 +308,53 @@ async function fetchPeerflix(peerflixUrl, type, id) {
   }
 }
 
+/**
+ * Fetch from TorrServer with HTTP Basic Auth support
+ * Official endpoint: /stremio/{type}/{id}
+ * Docs: https://github.com/YouROK/TorrServer
+ */
+async function fetchTorrServer(torrHost, torrUsername, torrPassword, type, id) {
+  try {
+    let host = torrHost.trim().replace(/\/$/, '');
+    const streamUrl = `${host}/stremio/${type}/${id}`;
+    console.log(`[Torrio] Fetching TorrServer: ${streamUrl}`);
+
+    const headers = {
+      'User-Agent': 'Torrio/1.0',
+      'Accept': 'application/json'
+    };
+
+    // ✅ HTTP Basic Auth (RFC 7617)
+    if (torrUsername && torrPassword) {
+      const credentials = Buffer.from(`${torrUsername}:${torrPassword}`).toString('base64');
+      headers['Authorization'] = `Basic ${credentials}`;
+      console.log('[Torrio] Using HTTP Basic Auth');
+    }
+
+    const res = await fetch(streamUrl, {
+      headers: headers,
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (!res.ok) {
+      console.error(`[Torrio] TorrServer HTTP ${res.status}`);
+      if (res.status === 401) {
+        console.error('[Torrio] TorrServer requires authentication - check username/password');
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const streams = data.streams || [];
+    console.log(`[Torrio] TorrServer found ${streams.length} streams`);
+    return streams;
+
+  } catch (err) {
+    console.error(`[Torrio] TorrServer failed: ${err.message}`);
+    return [];
+  }
+}
+
 // =========================================
 // Main Fetch Dispatcher
 // =========================================
@@ -475,19 +522,41 @@ http.createServer(async (req, res) => {
     const maxStreams = config.max_streams || 20;
 
     try {
-      // Fetch all upstreams in parallel
-      const results = await Promise.allSettled(
-        upstreamUrls.map(u => fetchFromUpstream(u, type, id))
-      );
+      // Check if TorrServer is configured
+      const torrHost = config.jacktorr_host || '';
+      const torrUsername = config.jacktorr_username || '';
+      const torrPassword = config.jacktorr_password || '';
 
       let allStreams = [];
-      results.forEach(r => {
-        if (r.status === 'fulfilled') {
-          allStreams.push(...r.value);
-        } else {
-          console.error('[Torrio] Upstream rejected:', r.reason);
-        }
-      });
+
+      // ✅ If TorrServer is configured, fetch from it FIRST
+      if (torrHost) {
+        console.log('[Torrio] TorrServer configured, fetching from TorrServer...');
+        const torrStreams = await fetchTorrServer(torrHost, torrUsername, torrPassword, type, id);
+        allStreams.push(...torrStreams);
+      }
+
+      // ✅ Also fetch from upstream URLs if configured
+      if (upstreamUrls.length > 0) {
+        console.log(`[Torrio] Fetching from ${upstreamUrls.length} upstream(s)...`);
+        const upstreamResults = await Promise.allSettled(
+          upstreamUrls.map(u => fetchFromUpstream(u, type, id))
+        );
+
+        upstreamResults.forEach(r => {
+          if (r.status === 'fulfilled') {
+            allStreams.push(...r.value);
+          } else {
+            console.error('[Torrio] Upstream rejected:', r.reason);
+          }
+        });
+      }
+
+      // ✅ Fallback to default Torrentio if nothing configured
+      if (!torrHost && upstreamUrls.length === 0) {
+        const defaultStreams = await fetchFromUpstream('https://torrentio.strem.fun', type, id);
+        allStreams.push(...defaultStreams);
+      }
 
       // Apply filters
       allStreams = applyFilters(allStreams, filters);
