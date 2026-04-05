@@ -81,7 +81,7 @@ function toTorrServerPlayUrl(torrHost, streamObj, filename = 'video.mp4') {
     if (!torrHost) return streamObj.url;
     let host = torrHost.trim().replace(/\/$/, '');
     
-    // If stream has _infoHash field (from Prowlarr), use it directly
+    // ✅ PRIORITAS: Jika stream punya _infoHash valid (dari Prowlarr), pakai langsung
     if (streamObj._infoHash && /^[a-fA-F0-9]{40}$/.test(streamObj._infoHash)) {
       return `${host}/play/${streamObj._infoHash}/${filename}`;
     }
@@ -89,18 +89,21 @@ function toTorrServerPlayUrl(torrHost, streamObj, filename = 'video.mp4') {
     const url = streamObj.url;
     if (!url) return streamObj.url;
     
-    // If already a TorrServer play URL, return as-is
+    // Jika sudah TorrServer play URL, return as-is
     if (url.includes('/play/') && url.startsWith(host)) return url;
     
-    // Extract infohash and build play URL
-    const infohash = extractInfoHash(url);
-    if (infohash) {
-      return `${host}/play/${infohash}/${filename}`;
+    // Fallback: extract infohash dari URL
+    if (url.startsWith('magnet:')) {
+      const match = url.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
+      if (match) {
+        return `${host}/play/${match[1].toLowerCase()}/${filename}`;
+      }
     }
     
-    // Fallback: return original URL
-    console.log(`[Torrio] Could not extract infohash from: ${url.slice(0, 100)}...`);
+    // Jika tidak bisa extract, return original URL
+    console.log(`[Torrio] Could not extract infohash, passing URL as-is: ${url.slice(0, 80)}...`);
     return url;
+    
   } catch (e) {
     console.error('[Torrio] TorrServer URL conversion error:', e.message);
     return streamObj.url;
@@ -241,24 +244,31 @@ async function fetchTorznab(torznabUrl, type, id) {
     console.log(`[Torrio] Processing ${results.length} results`);
     
     results.forEach(item => {
-      // Priority: InfoHash field (Prowlarr Native API)
+      // ✅ PRIORITAS: Gunakan InfoHash field dari Prowlarr (jika ada)
       let magnetOrLink = null;
       let infoHash = null;
       
-      if (item.InfoHash && /^[a-fA-F0-9]{40}$/.test(item.InfoHash)) {
+      // Priority 1: InfoHash field (40-char hex) - PALING RELIABLE
+      if (item.InfoHash && typeof item.InfoHash === 'string' && /^[a-fA-F0-9]{40}$/.test(item.InfoHash)) {
         infoHash = item.InfoHash.toLowerCase();
         magnetOrLink = `magnet:?xt=urn:btih:${infoHash}`;
         console.log(`[Torrio] Using InfoHash field: ${infoHash}`);
       }
+      // Priority 2: MagnetUri/MagnetURI
       else if (item.MagnetUri || item.MagnetURI) {
         magnetOrLink = item.MagnetUri || item.MagnetURI;
+        // Try extract infohash from magnet for fallback
+        const match = magnetOrLink.match(/xt=urn:btih:([a-zA-Z0-9]{40})/i);
+        if (match) infoHash = match[1].toLowerCase();
       }
+      // Priority 3: Link/Guid
       else if (item.Link || item.Guid) {
         magnetOrLink = item.Link || item.Guid;
       }
+      // Priority 4: downloadUrl (fallback - pass as-is)
       else if (item.downloadUrl) {
         magnetOrLink = item.downloadUrl;
-        // Try to extract infohash from downloadUrl link param
+        // Try extract from downloadUrl link param (optional)
         try {
           const dlUrl = new URL(item.downloadUrl);
           const linkParam = dlUrl.searchParams.get('link');
@@ -266,12 +276,9 @@ async function fetchTorznab(torznabUrl, type, id) {
             const decoded = Buffer.from(linkParam, 'base64').toString('utf-8');
             if (/^[a-fA-F0-9]{40}$/.test(decoded)) {
               infoHash = decoded.toLowerCase();
-              console.log(`[Torrio] Decoded InfoHash from downloadUrl: ${infoHash}`);
             }
           }
-        } catch (e) {
-          // Fallback to original downloadUrl
-        }
+        } catch (e) { /* ignore */ }
       }
       
       if (magnetOrLink) {
@@ -286,7 +293,7 @@ async function fetchTorznab(torznabUrl, type, id) {
           url: magnetOrLink,
           seeders: seeders,
           size: item.Size || item.size || 0,
-          _infoHash: infoHash // Pass for TorrServer wrapping
+          _infoHash: infoHash // ✅ ALWAYS include for TorrServer wrapping
         });
       }
     });
