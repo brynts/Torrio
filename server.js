@@ -2,11 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// =========================================
-// Configuration
-// =========================================
 const PORT = 80;
-
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -23,13 +19,6 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf'
 };
 
-// =========================================
-// Utility Functions
-// =========================================
-
-/**
- * Decode URL-safe base64 config string
- */
 function safeAtob(str) {
   try {
     let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -43,39 +32,27 @@ function safeAtob(str) {
   }
 }
 
-/**
- * Detect provider type from upstream URL
- */
+// Detect provider type
 function detectProvider(url) {
   if (!url) return 'unknown';
   const u = url.toLowerCase();
-
   if (u.includes('torrentio.strem.fun')) return 'torrentio';
   if (u.includes('mediafusion')) return 'mediafusion';
   if (u.includes('comet') && !u.includes('comet.elfhosted.com/manifest')) return 'comet';
   if (u.includes('zmb') && u.includes('manifest.json')) return 'zmb';
   if (u.includes('jacred') || u.includes('maxvol.pro')) return 'jacred';
   if (u.includes('peerflix')) return 'peerflix';
-  if (u.includes('api/v') && (u.includes('torznab') || u.includes('search') || u.includes('indexers') || u.includes('apikey'))) {
-    return 'torznab';
-  }
+  if (u.includes('api/v') && (u.includes('torznab') || u.includes('search') || u.includes('indexers') || u.includes('apikey'))) return 'torznab';
   return 'stremio-addon';
 }
 
-// =========================================
-// Provider Fetch Handlers
-// =========================================
-
-/**
- * Fetch from Stremio addons (Torrentio, MediaFusion, Comet, Zmb)
- */
+// Fetch from Stremio addons
 async function fetchStremioAddon(upstreamUrl, type, id) {
   try {
     let url = upstreamUrl.trim()
       .replace(/\/manifest\.json(\?.*)?$/, '')
       .replace(/\/configure(\?.*)?$/, '')
       .replace(/\/$/, '');
-
     url += `/stream/${type}/${id}`;
     console.log(`[Torrio] Fetching Stremio addon: ${url}`);
 
@@ -93,155 +70,77 @@ async function fetchStremioAddon(upstreamUrl, type, id) {
     const streams = data.streams || [];
     console.log(`[Torrio] Stremio addon found ${streams.length} streams`);
     return streams;
-
   } catch (err) {
     console.error(`[Torrio] Stremio addon failed: ${err.message}`);
     return [];
   }
 }
 
-// Fetch from Prowlarr/Jackett (Torznab API)
+// Fetch from Prowlarr/Jackett
 async function fetchTorznab(torznabUrl, type, id) {
   try {
     const urlObj = new URL(torznabUrl.trim());
-    const apiKey =
-      urlObj.searchParams.get('apikey') ||
-      urlObj.searchParams.get('apiKey') ||
-      '';
+    const apiKey = urlObj.searchParams.get('apikey') || urlObj.searchParams.get('apiKey') || '';
     const isProwlarr = urlObj.pathname.includes('/api/v1/search');
 
     let searchUrl = `${urlObj.origin}${urlObj.pathname}?`;
     const params = new URLSearchParams();
 
-    // Extract IMDB ID
-    const imdbMatch = id.match(/(tt\d+)/);
-    const imdbId = imdbMatch ? imdbMatch[1] : '';
-    const query = id.replace('.json', '').replace(imdbId, '').trim();
+    if (type === 'movie') params.set('type', 'movie');
+    else if (type === 'series') params.set('type', 'tv');
+    else params.set('type', 'search');
 
-    if (isProwlarr) {
-      // ✅ PROWLARR NATIVE API v1
-      console.log('[Torrio] Using Prowlarr Native API v1');
-      if (type === 'movie') params.set('type', 'movie');
-      else if (type === 'series') params.set('type', 'tv');
-      else params.set('type', 'search');
-      if (imdbId) params.set('imdbid', imdbId);
-      if (query) params.set('q', query);
-      if (apiKey) params.set('apikey', apiKey);
-      params.set('limit', '100');
-    } else {
-      // ✅ TORZNAB API
-      console.log('[Torrio] Using Torznab API');
-      if (type === 'movie') params.set('t', 'movie');
-      else if (type === 'series') params.set('t', 'tvsearch');
-      else params.set('t', 'search');
-      if (imdbId) params.set('imdbid', imdbId);
-      if (query) params.set('q', query);
-      if (apiKey) params.set('apikey', apiKey);
-      params.set('limit', '100');
-      params.set('extended', '1');
-    }
+    const imdbMatch = id.match(/(tt\d+)/);
+    if (imdbMatch) params.set('imdbid', imdbMatch[1]);
+    const query = id.replace('.json', '');
+    if (query) params.set('q', query);
+    if (apiKey) params.set('apikey', apiKey);
+    params.set('limit', '100');
 
     searchUrl += params.toString();
-    console.log(`[Torrio] Fetching: ${searchUrl}`);
+    console.log(`[Torrio] Fetching ${isProwlarr ? 'Prowlarr' : 'Jackett'}: ${searchUrl}`);
 
     const res = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Torrio/1.0',
-        'Accept': 'application/json, application/xml, */*'
-      },
+      headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json, application/xml' },
       signal: AbortSignal.timeout(20000)
     });
 
-    if (!res.ok) {
-      console.error(`[Torrio] Torznab HTTP ${res.status}: ${res.statusText}`);
-      const errorText = await res.text().catch(() => '');
-      console.error(`[Torrio] Error body: ${errorText.slice(0, 300)}`);
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const contentType = res.headers.get('content-type') || '';
-    console.log(`[Torrio] Response Content-Type: ${contentType}`);
-
-    let data;
-    try {
-      const text = await res.text();
-      console.log(`[Torrio] Response length: ${text.length} bytes`);
-      if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-        data = JSON.parse(text);
-        console.log('[Torrio] Parsed as JSON');
-      } else {
-        console.log('[Torrio] Unknown format - using empty array');
-        data = [];
-      }
-    } catch (parseErr) {
-      console.error('[Torrio] JSON parse error:', parseErr.message);
-      data = [];
-    }
-
-    console.log('[Torrio] Response type:', Array.isArray(data) ? 'array' : typeof data);
-    if (!Array.isArray(data) && data?.Results) {
-      console.log(`[Torrio] Found Results array: ${data.Results.length} items`);
-      data = data.Results;
-    }
-
+    const data = await res.json();
     const streams = [];
-    const results = Array.isArray(data) ? data : [];
-    console.log(`[Torrio] Processing ${results.length} results`);
 
-    results.forEach((item, index) => {
-      // ✅ PROWLARR V1 API FIELD MAPPING
-      const magnetOrLink =
-        item.downloadUrl ||
-        item.MagnetUri ||
-        item.MagnetURI ||
-        item.torrent ||
-        item.Link ||
-        item.link ||
-        item.guid ||
-        item.Guid;
+    if (data.Results && Array.isArray(data.Results)) {
+      data.Results.forEach(item => {
+        if (item.MagnetUri || item.Link || item.Guid) {
+          const size = item.Size ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
+          const seeders = item.Seeders || 0;
+          const peers = item.Peers || item.Leechers || 0;
+          streams.push({
+            name: `${isProwlarr ? 'Prowlarr' : 'Jackett'}\n${size}`,
+            title: `${item.Title || 'Unknown'}\n👥 ${seeders} | 🔽 ${peers}`,
+            url: item.MagnetUri || item.Link || item.Guid,
+            seeders: seeders,
+            size: item.Size || 0
+          });
+        }
+      });
+    }
 
-      if (magnetOrLink) {
-        // Field mapping (handle both lowercase & uppercase)
-        const title = item.title || item.Title || `Unknown ${index + 1}`;
-        const sizeBytes = item.size || item.Size || 0;
-        const size = sizeBytes ? (sizeBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
-        const seeders = item.seeders || item.Seeders || 0;
-        const indexer = item.indexer || item.Indexer || '';
-
-        streams.push({
-          name: `Prowlarr${indexer ? ` • ${indexer}` : ''}\n${size}`,
-          title: `${title}\n👥 ${seeders || 'N/A'}`,
-          url: magnetOrLink,
-          seeders: seeders,
-          size: sizeBytes,
-          infoHash: item.infoHash || item.InfoHash || ''
-        });
-      }
-    });
-
-    console.log(`[Torrio] Converted ${streams.length} streams from Prowlarr`);
-    console.log(`[Torrio] Total streams to return: ${streams.length}`);
+    console.log(`[Torrio] Torznab found ${streams.length} streams`);
     return streams;
-
   } catch (err) {
-    console.error('[Torrio] Torznab failed:', err.message);
-    console.error(err.stack);
+    console.error(`[Torrio] Torznab failed: ${err.message}`);
     return [];
   }
 }
 
-/**
- * Fetch from Jacred
- */
+// Fetch from Jacred
 async function fetchJacred(jacredUrl, type, id) {
   try {
     let url = jacredUrl.trim().replace(/\/$/, '');
-
     const imdbMatch = id.match(/(tt\d+)/);
-    if (!imdbMatch) {
-      console.log('[Torrio] Jacred needs IMDB ID');
-      return [];
-    }
+    if (!imdbMatch) return [];
 
     url += `/api/search?imdb=${imdbMatch[1]}`;
     console.log(`[Torrio] Fetching Jacred: ${url}`);
@@ -271,22 +170,18 @@ async function fetchJacred(jacredUrl, type, id) {
 
     console.log(`[Torrio] Jacred found ${streams.length} streams`);
     return streams;
-
   } catch (err) {
     console.error(`[Torrio] Jacred failed: ${err.message}`);
     return [];
   }
 }
 
-/**
- * Fetch from Peerflix
- */
+// Fetch from Peerflix
 async function fetchPeerflix(peerflixUrl, type, id) {
   try {
     let url = peerflixUrl.trim()
       .replace(/\/manifest\.json(\?.*)?$/, '')
       .replace(/\/$/, '');
-
     url += `/stream/${type}/${id}`;
     console.log(`[Torrio] Fetching Peerflix: ${url}`);
 
@@ -301,101 +196,48 @@ async function fetchPeerflix(peerflixUrl, type, id) {
 
     console.log(`[Torrio] Peerflix found ${streams.length} streams`);
     return streams;
-
   } catch (err) {
     console.error(`[Torrio] Peerflix failed: ${err.message}`);
     return [];
   }
 }
 
-/**
- * Fetch from TorrServer with HTTP Basic Auth support
- * Official endpoint: /stremio/{type}/{id}
- * Docs: https://github.com/YouROK/TorrServer
- */
-async function fetchTorrServer(torrHost, torrUsername, torrPassword, type, id) {
-  try {
-    let host = torrHost.trim().replace(/\/$/, '');
-    const streamUrl = `${host}/stremio/${type}/${id}`;
-    console.log(`[Torrio] Fetching TorrServer: ${streamUrl}`);
-
-    const headers = {
-      'User-Agent': 'Torrio/1.0',
-      'Accept': 'application/json'
-    };
-
-    // ✅ HTTP Basic Auth (RFC 7617)
-    if (torrUsername && torrPassword) {
-      const credentials = Buffer.from(`${torrUsername}:${torrPassword}`).toString('base64');
-      headers['Authorization'] = `Basic ${credentials}`;
-      console.log('[Torrio] Using HTTP Basic Auth');
-    }
-
-    const res = await fetch(streamUrl, {
-      headers: headers,
-      signal: AbortSignal.timeout(20000)
-    });
-
-    if (!res.ok) {
-      console.error(`[Torrio] TorrServer HTTP ${res.status}`);
-      if (res.status === 401) {
-        console.error('[Torrio] TorrServer requires authentication - check username/password');
-      }
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    const streams = data.streams || [];
-    console.log(`[Torrio] TorrServer found ${streams.length} streams`);
-    return streams;
-
-  } catch (err) {
-    console.error(`[Torrio] TorrServer failed: ${err.message}`);
-    return [];
-  }
-}
-
-// =========================================
-// Main Fetch Dispatcher
-// =========================================
-
+// Main fetch dispatcher
 async function fetchFromUpstream(upstreamUrl, type, id) {
   const provider = detectProvider(upstreamUrl);
   console.log(`[Torrio] Provider detected: ${provider}`);
 
   switch (provider) {
-    case 'torznab':
-      return await fetchTorznab(upstreamUrl, type, id);
-    case 'jacred':
-      return await fetchJacred(upstreamUrl, type, id);
-    case 'peerflix':
-      return await fetchPeerflix(upstreamUrl, type, id);
+    case 'torznab': return await fetchTorznab(upstreamUrl, type, id);
+    case 'jacred': return await fetchJacred(upstreamUrl, type, id);
+    case 'peerflix': return await fetchPeerflix(upstreamUrl, type, id);
     case 'torrentio':
     case 'mediafusion':
     case 'comet':
     case 'zmb':
     case 'stremio-addon':
-    default:
-      return await fetchStremioAddon(upstreamUrl, type, id);
+    default: return await fetchStremioAddon(upstreamUrl, type, id);
   }
 }
 
-// =========================================
-// Filter & Sort Logic
-// =========================================
-
-// Apply filters - flexible matching for Prowlarr/Torrentio titles
-function applyFilters(streams, filters) {
+// Apply filters - FLEXIBLE & SMART
+function applyFilters(streams, filters, applyGlobalFilter = true) {
   if (!streams || !Array.isArray(streams)) return streams;
+  if (!applyGlobalFilter) return streams; // Skip filtering if not enabled for this URL
+
   let filtered = [...streams];
 
-  // Resolution filter - flexible keyword mapping
+  // Resolution filter
   if (filters?.resolution?.length) {
     const resMap = {
       '4k': ['4k', '2160p', 'uhd', '3840'],
-      '1080p': ['1080p', 'fhd', '1920', '1920x1080'],
+      '1440p': ['1440p', '2k', '2560'],
+      '1080p': ['1080p', 'fhd', '1920', '1920x1080', 'fullhd'],
       '720p': ['720p', 'hd', '1280', '1280x720'],
-      '480p': ['480p', 'sd', '854x480', '640x480', '720x480']
+      '576p': ['576p', 'pal', '720x576'],
+      '480p': ['480p', 'sd', '854x480', '640x480', '720x480', 'ntsc'],
+      '360p': ['360p', '640x360'],
+      'other': ['other', 'unknown']
     };
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
@@ -406,14 +248,14 @@ function applyFilters(streams, filters) {
     });
   }
 
-  // Quality filter - flexible mapping
+  // Quality filter
   if (filters?.quality?.length) {
     const qMap = {
-      bluray: ['bluray', 'bdrip', 'remux', 'bdremux', 'blu-ray', 'brrip'],
-      webdl: ['webdl', 'webrip', 'web-dl', 'amzn', 'nf', 'dsnp', 'hulu', 'disney', 'apple'],
-      hdtv: ['hdtv', 'tvrip'],
-      dvd: ['dvdrip', 'dvd', 'r5', 'scr', 'screener'],
-      cam: ['cam', 'ts', 'tc', 'camsrip', 'telecine']
+      bluray: ['bluray', 'bdrip', 'remux', 'bdremux', 'blu-ray', 'brrip', 'bdrip'],
+      webdl: ['webdl', 'webrip', 'web-dl', 'amzn', 'nf', 'dsnp', 'hulu', 'disney', 'apple', 'atvp', 'cr', 'pcok'],
+      hdtv: ['hdtv', 'tvrip', 'dsr', 'satrip', 'dthrip'],
+      dvd: ['dvdrip', 'dvd', 'r5', 'scr', 'screener', 'dvdscr'],
+      cam: ['cam', 'ts', 'tc', 'camsrip', 'telecine', 'hdcam']
     };
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
@@ -425,27 +267,35 @@ function applyFilters(streams, filters) {
   }
 
   // HDR filter
-  if (filters?.hdr?.length && !filters.hdr.includes('sdr')) {
-    const hMap = {
-      dolbyvision: ['dolby vision', 'dv ', 'dv.', 'dolbyvision'],
-      hdr10plus: ['hdr10+', 'hdr10plus'],
-      hdr10: ['hdr10'],
-      hdr: ['hdr']
-    };
-    filtered = filtered.filter(s => {
-      const t = ((s.title || '') + (s.name || '')).toLowerCase();
-      return filters.hdr.some(h => {
-        const keywords = hMap[h.toLowerCase()] || [h.toLowerCase()];
-        return keywords.some(k => t.includes(k));
+  if (filters?.hdr?.length) {
+    const wantsHdr = filters.hdr.some(h => h.toLowerCase() !== 'sdr');
+    if (wantsHdr) {
+      const hMap = {
+        dolbyvision: ['dolby vision', 'dv ', 'dv.', 'dolbyvision', ' dolby '],
+        hdr10plus: ['hdr10+', 'hdr10plus'],
+        hdr10: ['hdr10'],
+        hdr: ['hdr'],
+        sdr: ['sdr']
+      };
+      filtered = filtered.filter(s => {
+        const t = ((s.title || '') + (s.name || '')).toLowerCase();
+        return filters.hdr.some(h => {
+          if (h.toLowerCase() === 'sdr') return true;
+          const keywords = hMap[h.toLowerCase()] || [h.toLowerCase()];
+          return keywords.some(k => t.includes(k));
+        });
       });
-    });
+    }
   }
 
-  // Language filter
+  // Language filter - ONLY filter if stream HAS language info
   if (filters?.language?.length) {
+    const allLangs = ['english', 'indonesian', 'vietnamese', 'chinese', 'japanese', 'korean', 'french', 'german', 'spanish', 'italian', 'portuguese', 'russian', 'hindi', 'thai', 'arabic', 'turkish', 'polish', 'dutch', 'swedish', 'danish', 'norwegian', 'finnish', 'greek', 'czech', 'hungarian', 'romanian', 'hebrew', 'malay', 'tagalog', 'ukrainian', 'multi'];
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
-      return filters.language.some(l => t.includes(l.toLowerCase()));
+      const hasLangKeyword = filters.language.some(l => t.includes(l.toLowerCase()));
+      const hasAnyLang = allLangs.some(lang => t.includes(lang));
+      return hasLangKeyword || !hasAnyLang;
     });
   }
 
@@ -454,28 +304,22 @@ function applyFilters(streams, filters) {
     filtered = filtered.filter(s => !((s.title || '') + (s.name || '')).toLowerCase().includes('3d'));
   }
 
-  // Sort by seeders
+  // Sort
   if (filters?.sort_by?.[0] === 'seeders') {
     filtered.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
-  }
-  // Sort by resolution
-  else if (filters?.sort_by?.[0] === 'resolution') {
-    const resOrder = { '4k':4, '2160p':4, '1440p':3, '1080p':2, '720p':1, '576p':0, '480p':0, '360p':0 };
+  } else if (filters?.sort_by?.[0] === 'resolution') {
+    const resOrder = { '4k': 4, '2160p': 4, '1440p': 3, '1080p': 2, '720p': 1, '576p': 0, '480p': 0, '360p': 0 };
     filtered.sort((a, b) => {
-      const ta = ((a.title||'')+(a.name||'')).toLowerCase();
-      const tb = ((b.title||'')+(b.name||'')).toLowerCase();
+      const ta = ((a.title || '') + (a.name || '')).toLowerCase();
+      const tb = ((b.title || '') + (b.name || '')).toLowerCase();
       const ra = Object.keys(resOrder).find(r => ta.includes(r)) || 'other';
       const rb = Object.keys(resOrder).find(r => tb.includes(r)) || 'other';
-      return (resOrder[rb]||0) - (resOrder[ra]||0);
+      return (resOrder[rb] || 0) - (resOrder[ra] || 0);
     });
   }
 
   return filtered;
 }
-
-// =========================================
-// HTTP Server
-// =========================================
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -485,12 +329,9 @@ http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    return res.end();
-  }
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
-  // 🎯 MANIFEST.JSON Handler
+  // 🎯 MANIFEST.JSON
   const mMatch = pn.match(/^\/([^/]+)\/manifest\.json$/);
   if (mMatch) {
     const cfgKey = mMatch[1];
@@ -508,21 +349,15 @@ http.createServer(async (req, res) => {
       resources: ['stream'],
       logo: `https://torz.sapu.tr/icon.png`,
       idPrefixes: ['tt', 'kitsu'],
-      behaviorHints: {
-        configurable: true,
-        configurationRequired: false
-      },
+      behaviorHints: { configurable: true, configurationRequired: false },
       configurationURL: `${base}/${cfgKey}/configure`
     };
 
-    res.writeHead(200, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store'
-    });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify(manifest));
   }
 
-  // 🎯 STREAM REQUEST Handler
+  // 🎯 STREAM REQUEST
   const sMatch = pn.match(/^\/([^/]+)\/stream\/(movie|series|anime)\/([^/]+\.json)$/);
   if (sMatch) {
     const cfgKey = sMatch[1];
@@ -532,55 +367,59 @@ http.createServer(async (req, res) => {
     const config = configJson ? JSON.parse(configJson) : {};
 
     const upstreamUrls = (config.upstream_url || '').split('\n').filter(u => u.trim());
+    const upstreamFilters = config.upstream_filters || [];
+    const upstreamDirect = config.upstream_direct || [];
+    
     if (upstreamUrls.length === 0) upstreamUrls.push('https://torrentio.strem.fun');
 
     const filters = config.filters || {};
     const maxStreams = config.max_streams || 20;
 
     try {
-      // Check if TorrServer is configured
-      const torrHost = config.jacktorr_host || '';
-      const torrUsername = config.jacktorr_username || '';
-      const torrPassword = config.jacktorr_password || '';
-
       let allStreams = [];
 
-      // ✅ If TorrServer is configured, fetch from it FIRST
-      if (torrHost) {
-        console.log('[Torrio] TorrServer configured, fetching from TorrServer...');
-        const torrStreams = await fetchTorrServer(torrHost, torrUsername, torrPassword, type, id);
-        allStreams.push(...torrStreams);
+      // Fetch from each upstream with its own filter setting
+      for (let i = 0; i < upstreamUrls.length; i++) {
+        const upstreamUrl = upstreamUrls[i];
+        const applyFilter = upstreamFilters[i] !== false; // Default true if not set
+        const useDirect = upstreamDirect[i] === true;
+
+        console.log(`[Torrio] Fetching upstream ${i + 1}: ${upstreamUrl}`);
+        console.log(`[Torrio] Apply global filter: ${applyFilter}, Direct: ${useDirect}`);
+
+        try {
+          const streams = await fetchFromUpstream(upstreamUrl, type, id);
+          
+          // Apply filters only if enabled for this URL
+          const filteredStreams = applyFilters(streams, filters, applyFilter);
+          
+          // Limit per source if not using direct link
+          const limitedStreams = useDirect ? filteredStreams : filteredStreams.slice(0, maxStreams);
+          
+          allStreams.push(...limitedStreams);
+          console.log(`[Torrio] Upstream ${i + 1}: ${streams.length} → ${limitedStreams.length} streams`);
+        } catch (err) {
+          console.error(`[Torrio] Upstream ${i + 1} failed:`, err.message);
+        }
       }
 
-      // ✅ Also fetch from upstream URLs if configured
-      if (upstreamUrls.length > 0) {
-        console.log(`[Torrio] Fetching from ${upstreamUrls.length} upstream(s)...`);
-        const upstreamResults = await Promise.allSettled(
-          upstreamUrls.map(u => fetchFromUpstream(u, type, id))
-        );
-
-        upstreamResults.forEach(r => {
-          if (r.status === 'fulfilled') {
-            allStreams.push(...r.value);
-          } else {
-            console.error('[Torrio] Upstream rejected:', r.reason);
-          }
+      // Final sort & limit
+      if (filters?.sort_by?.[0] === 'seeders') {
+        allStreams.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+      } else if (filters?.sort_by?.[0] === 'resolution') {
+        const resOrder = { '4k': 4, '2160p': 4, '1440p': 3, '1080p': 2, '720p': 1, '576p': 0, '480p': 0, '360p': 0 };
+        allStreams.sort((a, b) => {
+          const ta = ((a.title || '') + (a.name || '')).toLowerCase();
+          const tb = ((b.title || '') + (b.name || '')).toLowerCase();
+          const ra = Object.keys(resOrder).find(r => ta.includes(r)) || 'other';
+          const rb = Object.keys(resOrder).find(r => tb.includes(r)) || 'other';
+          return (resOrder[rb] || 0) - (resOrder[ra] || 0);
         });
       }
 
-      // ✅ Fallback to default Torrentio if nothing configured
-      if (!torrHost && upstreamUrls.length === 0) {
-        const defaultStreams = await fetchFromUpstream('https://torrentio.strem.fun', type, id);
-        allStreams.push(...defaultStreams);
-      }
-
-      // Apply filters
-      allStreams = applyFilters(allStreams, filters);
-
-      // Limit results
       const finalStreams = allStreams.slice(0, maxStreams);
-
       console.log(`[Torrio] Returning ${finalStreams.length} streams to Stremio`);
+      
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ streams: finalStreams }));
 
@@ -591,15 +430,12 @@ http.createServer(async (req, res) => {
     }
   }
 
-  // 📦 SERVE STATIC FILES Handler
+  // 📦 SERVE STATIC FILES
   if (pn === '/' || pn === '/index.html') pn = '/index.html';
   let fp = path.join(__dirname, pn);
   const root = path.resolve(__dirname);
 
-  if (!fp.startsWith(root)) {
-    res.writeHead(403);
-    return res.end('Forbidden');
-  }
+  if (!fp.startsWith(root)) { res.writeHead(403); return res.end('Forbidden'); }
 
   const ext = path.extname(fp).toLowerCase();
   const ct = MIME_TYPES[ext] || 'application/octet-stream';
@@ -608,28 +444,17 @@ http.createServer(async (req, res) => {
     if (err) {
       if (err.code === 'ENOENT' && !ext) {
         fs.readFile(path.join(__dirname, 'index.html'), (e, d) => {
-          if (e) {
-            res.writeHead(500);
-            return res.end('Server Error');
-          }
+          if (e) { res.writeHead(500); return res.end('Server Error'); }
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(d);
         });
-      } else {
-        res.writeHead(404);
-        res.end('Not Found');
-      }
+      } else { res.writeHead(404); res.end('Not Found'); }
       return;
     }
 
     const nc = ['.html', '.js', '.css'].includes(ext);
-    res.writeHead(200, {
-      'Content-Type': ct,
-      'Cache-Control': nc ? 'no-store' : 'public, max-age=3600'
-    });
+    res.writeHead(200, { 'Content-Type': ct, 'Cache-Control': nc ? 'no-store' : 'public, max-age=3600' });
     res.end(data);
   });
 
-}).listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Torrio running on port ${PORT}`);
-});
+}).listen(PORT, '0.0.0.0', () => console.log(`✅ Torrio running on port ${PORT}`));
