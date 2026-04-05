@@ -119,34 +119,21 @@ async function fetchTorznab(torznabUrl, type, id) {
     const query = id.replace('.json', '').replace(imdbId, '').trim();
 
     if (isProwlarr) {
-      // ✅ PROWLARR NATIVE API v1 - gunakan parameter yang benar
+      // ✅ PROWLARR NATIVE API v1
       console.log('[Torrio] Using Prowlarr Native API v1');
-
-      // Prowlarr pakai 'type', bukan 't'
-      if (type === 'movie') {
-        params.set('type', 'movie');
-      } else if (type === 'series') {
-        params.set('type', 'tv');
-      } else {
-        params.set('type', 'search');
-      }
-
+      if (type === 'movie') params.set('type', 'movie');
+      else if (type === 'series') params.set('type', 'tv');
+      else params.set('type', 'search');
       if (imdbId) params.set('imdbid', imdbId);
       if (query) params.set('q', query);
       if (apiKey) params.set('apikey', apiKey);
       params.set('limit', '100');
     } else {
-      // ✅ TORZNAB API (Jackett / Prowlarr Torznab endpoint)
+      // ✅ TORZNAB API
       console.log('[Torrio] Using Torznab API');
-
-      if (type === 'movie') {
-        params.set('t', 'movie');
-      } else if (type === 'series') {
-        params.set('t', 'tvsearch');
-      } else {
-        params.set('t', 'search');
-      }
-
+      if (type === 'movie') params.set('t', 'movie');
+      else if (type === 'series') params.set('t', 'tvsearch');
+      else params.set('t', 'search');
       if (imdbId) params.set('imdbid', imdbId);
       if (query) params.set('q', query);
       if (apiKey) params.set('apikey', apiKey);
@@ -179,107 +166,63 @@ async function fetchTorznab(torznabUrl, type, id) {
     try {
       const text = await res.text();
       console.log(`[Torrio] Response length: ${text.length} bytes`);
-
       if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
         data = JSON.parse(text);
         console.log('[Torrio] Parsed as JSON');
-      } else if (
-        text.trim().startsWith('<?xml') ||
-        text.trim().startsWith('<rss')
-      ) {
-        console.log('[Torrio] Response is XML - using empty Results');
-        data = { Results: [] };
       } else {
-        console.log('[Torrio] Unknown format - using empty Results');
-        data = { Results: [] };
+        console.log('[Torrio] Unknown format - using empty array');
+        data = [];
       }
     } catch (parseErr) {
       console.error('[Torrio] JSON parse error:', parseErr.message);
-      data = { Results: [] };
+      data = [];
     }
 
-    console.log('[Torrio] Response keys:', Object.keys(data));
-    console.log(
-      '[Torrio] Response preview:',
-      JSON.stringify(data).slice(0, 400)
-    );
+    console.log('[Torrio] Response type:', Array.isArray(data) ? 'array' : typeof data);
+    if (!Array.isArray(data) && data?.Results) {
+      console.log(`[Torrio] Found Results array: ${data.Results.length} items`);
+      data = data.Results;
+    }
 
     const streams = [];
+    const results = Array.isArray(data) ? data : [];
+    console.log(`[Torrio] Processing ${results.length} results`);
 
-    // Prowlarr v1 API format - Results array
-    if (data.Results && Array.isArray(data.Results)) {
-      console.log(
-        `[Torrio] Processing ${data.Results.length} results from Results array`
-      );
+    results.forEach((item, index) => {
+      // ✅ PROWLARR V1 API FIELD MAPPING
+      const magnetOrLink =
+        item.downloadUrl ||
+        item.MagnetUri ||
+        item.MagnetURI ||
+        item.torrent ||
+        item.Link ||
+        item.link ||
+        item.guid ||
+        item.Guid;
 
-      data.Results.forEach((item, index) => {
-        const hasMagnet = item.MagnetUri || item.MagnetURI;
-        const hasLink = item.Link || item.Guid;
+      if (magnetOrLink) {
+        // Field mapping (handle both lowercase & uppercase)
+        const title = item.title || item.Title || `Unknown ${index + 1}`;
+        const sizeBytes = item.size || item.Size || 0;
+        const size = sizeBytes ? (sizeBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
+        const seeders = item.seeders || item.Seeders || 0;
+        const indexer = item.indexer || item.Indexer || '';
 
-        if (hasMagnet || hasLink) {
-          const size = item.Size
-            ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB'
-            : '';
-          const seeders = item.Seeders || 0;
-          const peers = item.Peers || item.Leechers || 0;
-          const title = item.Title || `Unknown ${index + 1}`;
+        streams.push({
+          name: `Prowlarr${indexer ? ` • ${indexer}` : ''}\n${size}`,
+          title: `${title}\n👥 ${seeders || 'N/A'}`,
+          url: magnetOrLink,
+          seeders: seeders,
+          size: sizeBytes,
+          infoHash: item.infoHash || item.InfoHash || ''
+        });
+      }
+    });
 
-          streams.push({
-            name: `Prowlarr\n${size}`,
-            title: `${title}\n👥 ${seeders} | 🔽 ${peers}`,
-            url: hasMagnet
-              ? item.MagnetUri || item.MagnetURI
-              : item.Link || item.Guid,
-            seeders: seeders,
-            size: item.Size || 0,
-            infoHash: item.InfoHash || ''
-          });
-        }
-      });
-      console.log(
-        `[Torrio] Converted ${streams.length} streams from Prowlarr Results`
-      );
-    }
-    // Generic array response
-    else if (Array.isArray(data)) {
-      console.log(`[Torrio] Processing ${data.length} results from array`);
-
-      data.forEach((item, index) => {
-        const magnetOrLink =
-          item.magnet ||
-          item.MagnetUri ||
-          item.MagnetURI ||
-          item.torrent ||
-          item.Link ||
-          item.link ||
-          item.download;
-
-        if (magnetOrLink) {
-          const size =
-            item.size || item.Size
-              ? ((item.size || item.Size) / 1024 / 1024 / 1024).toFixed(2) +
-                ' GB'
-              : '';
-          const seeders = item.seeders || item.Seeders || 0;
-
-          streams.push({
-            name: `Prowlarr\n${size}`,
-            title: `${
-              item.title || item.Title || `Unknown ${index + 1}`
-            }\n👥 ${seeders}`,
-            url: magnetOrLink,
-            seeders: seeders,
-            size: item.size || item.Size || 0
-          });
-        }
-      });
-      console.log(`[Torrio] Converted ${streams.length} streams from array`);
-    } else {
-      console.log('[Torrio] No valid Results array found in response');
-    }
-
+    console.log(`[Torrio] Converted ${streams.length} streams from Prowlarr`);
     console.log(`[Torrio] Total streams to return: ${streams.length}`);
     return streams;
+
   } catch (err) {
     console.error('[Torrio] Torznab failed:', err.message);
     console.error(err.stack);
