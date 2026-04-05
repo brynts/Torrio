@@ -100,72 +100,116 @@ async function fetchStremioAddon(upstreamUrl, type, id) {
   }
 }
 
-/**
- * Fetch from Prowlarr/Jackett (Torznab API) - Enhanced with better response parsing
- */
+// Fetch from Prowlarr/Jackett (Torznab API)
 async function fetchTorznab(torznabUrl, type, id) {
   try {
     const urlObj = new URL(torznabUrl.trim());
     const apiKey = urlObj.searchParams.get('apikey') || urlObj.searchParams.get('apiKey') || '';
     const isProwlarr = urlObj.pathname.includes('/api/v1/search');
-    const isJackett = urlObj.pathname.includes('/torznab');
-
+    
     let searchUrl = `${urlObj.origin}${urlObj.pathname}?`;
     const params = new URLSearchParams();
-
-    // Set search type
-    if (type === 'movie') {
-      params.set('t', 'movie');
-    } else if (type === 'series') {
-      params.set('t', 'tvsearch');
-    } else {
-      params.set('t', 'search');
-    }
-
-    // Add IMDB ID if available
+    
+    // Extract IMDB ID
     const imdbMatch = id.match(/(tt\d+)/);
-    if (imdbMatch) {
-      params.set('imdbid', imdbMatch[1]);
+    const imdbId = imdbMatch ? imdbMatch[1] : '';
+    const query = id.replace('.json', '').replace(imdbId, '').trim();
+    
+    if (isProwlarr) {
+      // Prowlarr Native API v1
+      console.log('[Torrio] Using Prowlarr Native API v1');
+      
+      // Set type parameter (Prowlarr uses 'type' not 't')
+      if (type === 'movie') {
+        params.set('type', 'movie');
+      } else if (type === 'series') {
+        params.set('type', 'tv');
+      } else {
+        params.set('type', 'search');
+      }
+      
+      // Add IMDB ID
+      if (imdbId) {
+        params.set('imdbid', imdbId);
+      }
+      
+      // Add query if available
+      if (query) {
+        params.set('q', query);
+      }
+      
+      // Always include API key
+      if (apiKey) {
+        params.set('apikey', apiKey);
+      }
+      
+      // Set limit
+      params.set('limit', '100');
+      
+    } else {
+      // Torznab API (Jackett or Prowlarr Torznab)
+      console.log('[Torrio] Using Torznab API');
+      
+      // Set search type (torznab standard)
+      if (type === 'movie') {
+        params.set('t', 'movie');
+      } else if (type === 'series') {
+        params.set('t', 'tvsearch');
+      } else {
+        params.set('t', 'search');
+      }
+      
+      // Add IMDB ID
+      if (imdbId) {
+        params.set('imdbid', imdbId);
+      }
+      
+      // Add query
+      if (query) {
+        params.set('q', query);
+      }
+      
+      // API key
+      if (apiKey) {
+        params.set('apikey', apiKey);
+      }
+      
+      // Additional params
+      params.set('limit', '100');
+      params.set('extended', '1');
     }
-
-    // Add query
-    const query = id.replace('.json', '');
-    params.set('q', query);
-
-    if (apiKey) params.set('apikey', apiKey);
-    if (isProwlarr) params.set('limit', '100');
-
+    
     searchUrl += params.toString();
-    console.log(`[Torrio] Fetching ${isProwlarr ? 'Prowlarr' : 'Jackett'}: ${searchUrl}`);
-
+    console.log(`[Torrio] Fetching: ${searchUrl}`);
+    
     const res = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Torrio/1.0',
+      headers: { 
+        'User-Agent': 'Torrio/1.0', 
         'Accept': 'application/json, application/xml, */*'
       },
       signal: AbortSignal.timeout(20000)
     });
-
+    
     if (!res.ok) {
       console.error(`[Torrio] Torznab HTTP ${res.status}: ${res.statusText}`);
       const errorText = await res.text().catch(() => '');
       console.error(`[Torrio] Error response: ${errorText.slice(0, 300)}`);
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-
+    
     const contentType = res.headers.get('content-type') || '';
     console.log(`[Torrio] Response Content-Type: ${contentType}`);
-
+    
     let data;
     try {
       const text = await res.text();
       console.log(`[Torrio] Response length: ${text.length} bytes`);
-
+      
       if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
         data = JSON.parse(text);
         console.log('[Torrio] Parsed as JSON');
       } else if (text.trim().startsWith('<?xml') || text.trim().startsWith('<rss')) {
-        console.log('[Torrio] Response is XML - using empty Results (XML parsing not implemented)');
+        console.log('[Torrio] Response is XML - Prowlarr should return JSON for v1 API');
         data = { Results: [] };
       } else {
         console.log('[Torrio] Unknown response format - using empty Results');
@@ -175,28 +219,28 @@ async function fetchTorznab(torznabUrl, type, id) {
       console.error('[Torrio] JSON parse error:', parseErr.message);
       data = { Results: [] };
     }
-
+    
     console.log('[Torrio] Response keys:', Object.keys(data));
-    console.log('[Torrio] Response preview:', JSON.stringify(data).slice(0, 400));
-
+    console.log('[Torrio] Response preview:', JSON.stringify(data).slice(0, 500));
+    
     const streams = [];
-
+    
     // Prowlarr v1 API format - Results array
     if (data.Results && Array.isArray(data.Results)) {
       console.log(`[Torrio] Processing ${data.Results.length} results from Results array`);
-
+      
       data.Results.forEach((item, index) => {
         const hasMagnet = item.MagnetUri || item.MagnetURI;
         const hasLink = item.Link || item.Guid;
-
+        
         if (hasMagnet || hasLink) {
           const size = item.Size ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
           const seeders = item.Seeders || 0;
           const peers = item.Peers || item.Leechers || 0;
           const title = item.Title || `Unknown ${index + 1}`;
-
+          
           streams.push({
-            name: `${isProwlarr ? 'Prowlarr' : 'Jackett'}\n${size}`,
+            name: `Prowlarr\n${size}`,
             title: `${title}\n👥 ${seeders} | 🔽 ${peers}`,
             url: hasMagnet ? (item.MagnetUri || item.MagnetURI) : (item.Link || item.Guid),
             seeders: seeders,
@@ -210,16 +254,16 @@ async function fetchTorznab(torznabUrl, type, id) {
     // Generic array response
     else if (Array.isArray(data)) {
       console.log(`[Torrio] Processing ${data.length} results from array`);
-
+      
       data.forEach((item, index) => {
         const magnetOrLink = item.magnet || item.MagnetUri || item.MagnetURI || item.torrent || item.Link || item.link || item.download;
-
+        
         if (magnetOrLink) {
           const size = item.size || item.Size ? ((item.size || item.Size) / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
           const seeders = item.seeders || item.Seeders || 0;
-
+          
           streams.push({
-            name: `${isProwlarr ? 'Prowlarr' : 'Jackett'}\n${size}`,
+            name: `Prowlarr\n${size}`,
             title: `${item.title || item.Title || `Unknown ${index + 1}`}\n👥 ${seeders}`,
             url: magnetOrLink,
             seeders: seeders,
@@ -231,10 +275,10 @@ async function fetchTorznab(torznabUrl, type, id) {
     } else {
       console.log('[Torrio] No valid Results array or array found in response');
     }
-
+    
     console.log(`[Torrio] Total streams to return: ${streams.length}`);
     return streams;
-
+    
   } catch (err) {
     console.error('[Torrio] Torznab failed:', err.message);
     console.error(err.stack);
