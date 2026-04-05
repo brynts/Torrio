@@ -494,25 +494,37 @@
       <form id="configForm">
         <div class="form-group">
           <label for="jacktorrHost">TorrServer Host</label>
-          <input
-            type="text"
-            id="jacktorrHost"
-            name="jacktorrHost"
+          <input 
+            type="text" 
+            id="jacktorrHost" 
+            name="jacktorrHost" 
             placeholder="http://127.0.0.1:8090"
-            list="hostList"
           />
-          <datalist id="hostList">
-            <option value="http://127.0.0.1:8090"></option>
-            <option value="http://user:pass@192.168.1.100:8090"></option>
-          </datalist>
           <div class="help-text">
-            <a
-              href="https://github.com/YouROK/TorrServer"
-              target="_blank"
-              style="color: #2196f3"
-              >Setup TorrServer →</a
-            >
+            <a href="https://github.com/YouROK/TorrServer" target="_blank" style="color: #2196f3">Setup TorrServer →</a>
           </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="jacktorrUsername">TorrServer Username (Optional)</label>
+          <input 
+            type="text" 
+            id="jacktorrUsername" 
+            name="jacktorrUsername" 
+            placeholder="Leave empty if no authentication" 
+          />
+          <div class="help-text">Username untuk HTTP Auth TorrServer (jika diaktifkan di Settings)</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="jacktorrPassword">TorrServer Password (Optional)</label>
+          <input 
+            type="password" 
+            id="jacktorrPassword" 
+            name="jacktorrPassword" 
+            placeholder="Leave empty if no authentication" 
+          />
+          <div class="help-text">Password untuk HTTP Auth TorrServer (jika diaktifkan di Settings)</div>
         </div>
         <div class="form-group">
           <label>Upstream URLs</label>
