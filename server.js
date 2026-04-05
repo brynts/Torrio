@@ -20,81 +20,145 @@ function safeAtob(str) {
   } catch (e) { return null; }
 }
 
-// Detect provider type from URL
-function detectProviderType(url) {
-  if (url.includes('torrentio.strem.fun')) return 'torrentio';
-  if (url.includes('mediafusion')) return 'mediafusion';
-  if (url.includes('comet')) return 'comet';
-  if (url.includes('zmb') || url.includes('manifest.json')) return 'zmb';
-  if (url.includes('jacred') || url.includes('maxvol')) return 'jacred';
-  if (url.includes('api/v') && (url.includes('torznab') || url.includes('search') || url.includes('indexers'))) return 'torznab';
-  if (url.includes('peerflix')) return 'peerflix';
-  return 'stremio-addon'; // Default
+// Detect provider type
+function detectProvider(url) {
+  if (!url) return 'unknown';
+  const u = url.toLowerCase();
+  if (u.includes('torrentio.strem.fun')) return 'torrentio';
+  if (u.includes('mediafusion')) return 'mediafusion';
+  if (u.includes('comet') && !u.includes('comet.elfhosted.com/manifest')) return 'comet';
+  if (u.includes('zmb') && u.includes('manifest.json')) return 'zmb';
+  if (u.includes('jacred') || u.includes('maxvol.pro')) return 'jacred';
+  if (u.includes('peerflix')) return 'peerflix';
+  if (u.includes('api/v') && (u.includes('torznab') || u.includes('search') || u.includes('indexers') || u.includes('apikey'))) return 'torznab';
+  return 'stremio-addon';
 }
 
-// Fetch from Stremio addon (Torrentio, MediaFusion, Comet, Zmb)
+// Fetch from Stremio addons (Torrentio, MediaFusion, Comet, Zmb)
 async function fetchStremioAddon(upstreamUrl, type, id) {
   try {
-    let url = upstreamUrl.trim().replace(/\/manifest\.json(\?.*)?$/, '').replace(/\/$/, '');
+    let url = upstreamUrl.trim()
+      .replace(/\/manifest\.json(\?.*)?$/, '')
+      .replace(/\/configure(\?.*)?$/, '')
+      .replace(/\/$/, '');
+    
     url += `/stream/${type}/${id}`;
     console.log(`[Torrio] Fetching Stremio addon: ${url}`);
     
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(20000)
     });
     
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      console.error(`[Torrio] Stremio addon HTTP ${res.status}`);
+      throw new Error(`HTTP ${res.status}`);
+    }
+    
     const data = await res.json();
-    return data.streams || [];
+    const streams = data.streams || [];
+    console.log(`[Torrio] Stremio addon found ${streams.length} streams`);
+    return streams;
   } catch (err) {
     console.error(`[Torrio] Stremio addon failed: ${err.message}`);
     return [];
   }
 }
 
-// Fetch from Torznab (Jackett/Prowlarr)
+// Fetch from Prowlarr/Jackett (Torznab API)
 async function fetchTorznab(torznabUrl, type, id) {
   try {
-    // Extract base URL and API key
-    let url = torznabUrl.trim();
-    const urlObj = new URL(url);
+    const urlObj = new URL(torznabUrl.trim());
     const apiKey = urlObj.searchParams.get('apikey') || urlObj.searchParams.get('apiKey') || '';
+    const isProwlarr = urlObj.pathname.includes('/api/v1/search');
+    const isJackett = urlObj.pathname.includes('/torznab');
     
-    // Build Torznab search query
     let searchUrl = `${urlObj.origin}${urlObj.pathname}?`;
     const params = new URLSearchParams();
-    params.set('t', 'search'); // or 'movie'/'tvsearch' based on type
-    params.set('q', id); // Use IMDB ID as search query
+    
+    // Set search type
+    if (type === 'movie') {
+      params.set('t', 'movie');
+    } else if (type === 'series') {
+      params.set('t', 'tvsearch');
+    } else {
+      params.set('t', 'search');
+    }
+    
+    // Add IMDB ID if available
+    const imdbMatch = id.match(/(tt\d+)/);
+    if (imdbMatch) {
+      params.set('imdbid', imdbMatch[1]);
+    }
+    
+    // Add query
+    const query = id.replace('.json', '');
+    params.set('q', query);
+    
     if (apiKey) params.set('apikey', apiKey);
     
+    // Prowlarr v1 API specific
+    if (isProwlarr) {
+      params.set('limit', '100');
+    }
+    
     searchUrl += params.toString();
-    console.log(`[Torrio] Fetching Torznab: ${searchUrl}`);
+    console.log(`[Torrio] Fetching ${isProwlarr ? 'Prowlarr' : 'Jackett'}: ${searchUrl}`);
     
     const res = await fetch(searchUrl, {
-      headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json, application/xml' },
-      signal: AbortSignal.timeout(15000)
+      headers: { 
+        'User-Agent': 'Torrio/1.0', 
+        'Accept': 'application/json, application/xml'
+      },
+      signal: AbortSignal.timeout(20000)
     });
     
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json(); // Jackett/Prowlarr v1 API returns JSON
+    if (!res.ok) {
+      console.error(`[Torrio] Torznab HTTP ${res.status}`);
+      throw new Error(`HTTP ${res.status}`);
+    }
     
-    // Convert Torznab results to Stremio stream format
+    const contentType = res.headers.get('content-type') || '';
+    let data;
+    
+    if (contentType.includes('application/json')) {
+      data = await res.json();
+    } else {
+      // Try JSON first, fallback handled in catch
+      try {
+        data = await res.json();
+      } catch {
+        data = { Results: [] };
+      }
+    }
+    
+    console.log(`[Torrio] Torznab response keys:`, Object.keys(data));
+    
+    // Convert to Stremio format
     const streams = [];
+    
+    // Prowlarr v1 API format
     if (data.Results && Array.isArray(data.Results)) {
       data.Results.forEach(item => {
-        if (item.MagnetUri || item.Link) {
+        if (item.MagnetUri || item.Link || item.Guid) {
+          const size = item.Size ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '';
+          const seeders = item.Seeders || 0;
+          const peers = item.Peers || item.Leechers || 0;
+          
           streams.push({
-            name: `Prowlarr\n${item.Size ? (item.Size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : ''}`,
-            title: `${item.Title}\n👥 ${item.Seeders || 0} | 🔽 ${item.Peers || 0}`,
-            url: item.MagnetUri || item.Link,
-            seeders: item.Seeders || 0,
+            name: `${isProwlarr ? 'Prowlarr' : 'Jackett'}\n${size}`,
+            title: `${item.Title || 'Unknown'}\n👥 ${seeders} | 🔽 ${peers}`,
+            url: item.MagnetUri || item.Link || item.Guid,
+            seeders: seeders,
             size: item.Size || 0
           });
         }
       });
     }
+    
+    console.log(`[Torrio] Torznab found ${streams.length} streams`);
     return streams;
+    
   } catch (err) {
     console.error(`[Torrio] Torznab failed: ${err.message}`);
     return [];
@@ -105,33 +169,41 @@ async function fetchTorznab(torznabUrl, type, id) {
 async function fetchJacred(jacredUrl, type, id) {
   try {
     let url = jacredUrl.trim().replace(/\/$/, '');
-    // Jacred uses IMDB ID search
-    url += `/api/search?imdb=${id}`;
+    
+    // Jacred API format
+    const imdbMatch = id.match(/(tt\d+)/);
+    if (!imdbMatch) {
+      console.log('[Torrio] Jacred needs IMDB ID');
+      return [];
+    }
+    
+    url += `/api/search?imdb=${imdbMatch[1]}`;
     console.log(`[Torrio] Fetching Jacred: ${url}`);
     
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(20000)
     });
     
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     
-    // Convert to Stremio format (adjust based on actual Jacred response)
     const streams = [];
     if (Array.isArray(data)) {
       data.forEach(item => {
-        if (item.magnet || item.torrent) {
+        if (item.magnet || item.torrent || item.download) {
           streams.push({
-            name: `Jacred\n${item.quality || ''}`,
+            name: `Jacred\n${item.quality || ''} ${item.size ? (item.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : ''}`,
             title: `${item.title || 'Unknown'}\n👥 ${item.seeders || 0}`,
-            url: item.magnet || item.torrent,
+            url: item.magnet || item.torrent || item.download,
             seeders: item.seeders || 0,
             size: item.size || 0
           });
         }
       });
     }
+    
+    console.log(`[Torrio] Jacred found ${streams.length} streams`);
     return streams;
   } catch (err) {
     console.error(`[Torrio] Jacred failed: ${err.message}`);
@@ -142,30 +214,36 @@ async function fetchJacred(jacredUrl, type, id) {
 // Fetch from Peerflix
 async function fetchPeerflix(peerflixUrl, type, id) {
   try {
-    let url = peerflixUrl.trim().replace(/\/$/, '');
+    let url = peerflixUrl.trim()
+      .replace(/\/manifest\.json(\?.*)?$/, '')
+      .replace(/\/$/, '');
+    
     url += `/stream/${type}/${id}`;
     console.log(`[Torrio] Fetching Peerflix: ${url}`);
     
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Torrio/1.0', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(20000)
     });
     
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data.streams || [];
+    const streams = data.streams || [];
+    
+    console.log(`[Torrio] Peerflix found ${streams.length} streams`);
+    return streams;
   } catch (err) {
     console.error(`[Torrio] Peerflix failed: ${err.message}`);
     return [];
   }
 }
 
-// Main fetch function with provider detection
+// Main fetch dispatcher
 async function fetchFromUpstream(upstreamUrl, type, id) {
-  const providerType = detectProviderType(upstreamUrl);
-  console.log(`[Torrio] Provider detected: ${providerType}`);
+  const provider = detectProvider(upstreamUrl);
+  console.log(`[Torrio] Provider detected: ${provider}`);
   
-  switch (providerType) {
+  switch (provider) {
     case 'torznab':
       return await fetchTorznab(upstreamUrl, type, id);
     case 'jacred':
@@ -286,6 +364,8 @@ http.createServer(async (req, res) => {
       results.forEach(r => {
         if (r.status === 'fulfilled') {
           allStreams.push(...r.value);
+        } else {
+          console.error('[Torrio] Upstream rejected:', r.reason);
         }
       });
       
@@ -295,6 +375,7 @@ http.createServer(async (req, res) => {
       // Limit
       const finalStreams = allStreams.slice(0, maxStreams);
       
+      console.log(`[Torrio] Returning ${finalStreams.length} streams to Stremio`);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ streams: finalStreams }));
     } catch (err) {
