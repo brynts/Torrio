@@ -387,7 +387,6 @@ async function fetchFromUpstream(upstreamUrl, type, id) {
 // Apply filters - flexible matching for Prowlarr/Torrentio titles
 function applyFilters(streams, filters) {
   if (!streams || !Array.isArray(streams)) return streams;
-  
   let filtered = [...streams];
 
   // Resolution filter - flexible keyword mapping
@@ -398,7 +397,6 @@ function applyFilters(streams, filters) {
       '720p': ['720p', 'hd', '1280', '1280x720'],
       '480p': ['480p', 'sd', '854x480', '640x480', '720x480']
     };
-    
     filtered = filtered.filter(s => {
       const t = ((s.title || '') + (s.name || '')).toLowerCase();
       return filters.resolution.some(r => {
