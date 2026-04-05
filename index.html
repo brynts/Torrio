@@ -1141,6 +1141,15 @@
                   }
                 }
                 document.getElementById("jacktorrHost").value = hostValue;
+                
+                // Load TorrServer username & password if available
+if (config.jacktorr_username) {
+  document.getElementById("jacktorrUsername").value = config.jacktorr_username;
+}
+if (config.jacktorr_password) {
+  document.getElementById("jacktorrPassword").value = config.jacktorr_password;
+}
+
                 configLoaded = true;
               }
               /* 
@@ -1606,8 +1615,9 @@
             }
 
             const formData = {
-              jacktorr_host: finalHost,
-              jacktorr_password: finalPassword,
+              jacktorr_host: document.getElementById('jacktorrHost').value.trim(),
+              jacktorr_username: document.getElementById('jacktorrUsername').value.trim(),
+              jacktorr_password: document.getElementById('jacktorrPassword').value.trim(),
               upstream_url: upstreamUrlsString,
               upstream_filters: filterFlags,
               upstream_direct: directFlags,
